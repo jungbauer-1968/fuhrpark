@@ -784,6 +784,49 @@
     loadData();
     renderVehicles();
     updateDetailView();
+    function importCSV(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const text = e.target.result;
+    const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+
+    const header = lines[0].split(',');
+    const rows = lines.slice(1);
+
+    rows.forEach(row => {
+      const cols = row.split(',');
+
+      const vehicle = {
+        id: generateId(),
+        kennzeichen: cols[0] || '',
+        monteur: cols[1] || '',
+        marke: cols[2] || '',
+        gewicht: cols[3] || '',
+        pickerlBis: cols[4] || '',
+        leasingBis: cols[5] || '',
+        leasingInfo: cols[6] || '',
+        reifenSommerStatus: '',
+        reifenWinterStatus: '',
+        reifenHaendler: '',
+        reifenKaufdatum: '',
+        notizen: '',
+        fuelEntries: []
+      };
+
+      data.vehicles.push(vehicle);
+    });
+
+    saveData();
+    renderVehicles();
+    alert('Import abgeschlossen!');
+  };
+
+  reader.readAsText(file, 'UTF-8');
+}
+
   </script>
 </body>
 </html>
