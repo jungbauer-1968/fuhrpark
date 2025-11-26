@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>Fuhrpark Verwaltung - Elektro Jungbauer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Chart.js für das Tank-Diagramm -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f3f4f6;
+    }
+    header {
+      background: #111827;
+      color: #f9fafb;
+      padding: 1rem 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 1.2rem;
+    }
+    header small {
+      opacity: 0.8;
+      font-size: 0.8rem;
+    }
+    main {
+      padding: 1rem;
+      display: grid;
+      grid-template-columns: 1.1fr 1.4fr;
+      gap: 1rem;
+    }
+    @media (max-width: 900px) {
+      main {
+        grid-template-columns: 1fr;
+      }
+    }
+    .card {
+      background: white;
+      border-radius: 0.5rem;
+      padding: 1rem;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+    .card h2 {
+      margin-top: 0;
+      font-size: 1rem;
+      margin-bottom: 0.5rem;
+    }
+    .card h3 {
+      margin-top: 1rem;
+      font-size: 0.95rem;
+      margin-bottom: 0.4rem;
+    }
+    label {
+      display: block;
+      font-size: 0.8rem;
+      margin-top: 0.5rem;
+      margin-bottom: 0.1rem;
+    }
+    input[type="text"],
+    input[type="date"],
+    input[type="number"],
+    select,
+    textarea {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 0.3rem 0.4rem;
+      border-radius: 0.3rem;
+      border: 1px solid #d1d5db;
+      font-size: 0.85rem;
+    }
+    textarea {
+      min-height: 60px;
+    }
+    button {
+      border: none;
+      border-radius: 0.3rem;
+      padding: 0.4rem 0.8rem;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+    .btn-primary {
+      background: #2563eb;
+      color: white;
+    }
+    .btn-secondary {
+      background: #e5e7eb;
+      color: #111827;
+    }
+    .btn-danger {
+      background: #dc2626;
+      color: white;
+    }
+    .btn-small {
+      font-size: 0.75rem;
+      padding: 0.25rem 0.5rem;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+    }
+    th, td {
+      padding: 0.3rem 0.4rem;
+      border-bottom: 1px solid #e5e7eb;
+      text-align: left;
+    }
+    th {
+      background: #f9fafb;
+      font-weight: 600;
+    }
+    .status-pill {
+      display: inline-block;
+      padding: 0.1rem 0.4rem;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      color: white;
+    }
+    .status-green { background: #16a34a; }
+    .status-orange { background: #ea580c; }
+    .status-red { background: #dc2626; }
+    .status-gray { background: #6b7280; }
+
+    .flex {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .flex-between {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .mt-1 { margin-top: 0.25rem; }
+    .mt-2 { margin-top: 0.5rem; }
+    .mt-3 { margin-top: 0.75rem; }
+    .mt-4 { margin-top: 1rem; }
+
+    .badge {
+      background: #e5e7eb;
+      border-radius: 999px;
+      padding: 0.1rem 0.5rem;
+      font-size: 0.7rem;
+    }
+
+    .small-text {
+      font-size: 0.75rem;
+      color: #6b7280;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Fuhrpark Verwaltung</h1>
+      <small>Nur lokal im Browser gespeichert (localStorage)</small>
+    </div>
+    <div class="small-text">
+      Elektro Jungbauer – Version 1.0
+    </div>
+  </header>
+
+  <main>
+    <!-- Linke Seite: Fahrzeuge & neues Fahrzeug -->
+    <section class="card" id="vehicles-section">
+      <div class="flex-between">
+        <h2>Fahrzeuge</h2>
+        <button class="btn-secondary btn-small" onclick="resetVehicleForm()">Neu</button>
+      </div>
+
+      <table class="mt-2" id="vehicles-table">
+        <thead>
+          <tr>
+            <th>Kennzeichen</th>
+            <th>Monteur</th>
+            <th>Leasing</th>
+            <th>Pickerl</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="vehicles-tbody">
+          <!-- Dynamisch -->
+        </tbody>
+      </table>
+
+      <hr class="mt-3">
+
+      <h3>Fahrzeug anlegen / bearbeiten</h3>
+      <form id="vehicle-form" onsubmit="saveVehicle(event)">
+        <input type="hidden" id="vehicle-id">
+
+        <label for="kennzeichen">Kennzeichen</label>
+        <input type="text" id="kennzeichen" required>
+
+        <label for="monteur">Monteur</label>
+        <input type="text" id="monteur">
+
+        <label for="marke">Auto Marke / Modell</label>
+        <input type="text" id="marke">
+
+        <div class="flex">
+          <div style="flex:1">
+            <label for="gewicht">Gewicht (t)</label>
+            <input type="number" step="0.01" id="gewicht">
+          </div>
+          <div style="flex:1">
+            <label for="pickerl-bis">Pickerl gültig bis</label>
+            <input type="date" id="pickerl-bis">
+          </div>
+        </div>
+
+        <div class="flex mt-1">
+          <div style="flex:1">
+            <label for="leasing-bis">Leasing läuft bis</label>
+            <input type="date" id="leasing-bis">
+          </div>
+          <div style="flex:1">
+            <label for="leasing-info">Leasing Info (Bank, Vertrag…)</label>
+            <input type="text" id="leasing-info">
+          </div>
+        </div>
+
+        <h3 class="mt-3">Reifen-Status</h3>
+        <div class="flex">
+          <div style="flex:1">
+            <label for="reifen-sommer-status">Sommerreifen Status</label>
+            <select id="reifen-sommer-status">
+              <option value="">–</option>
+              <option value="ok">OK</option>
+              <option value="bald">Nahe Tausch</option>
+              <option value="tausch">Tausch fällig</option>
+            </select>
+          </div>
+          <div style="flex:1">
+            <label for="reifen-winter-status">Winterreifen Status</label>
+            <select id="reifen-winter-status">
+              <option value="">–</option>
+              <option value="ok">OK</option>
+              <option value="bald">Nahe Tausch</option>
+              <option value="tausch">Tausch fällig</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="flex mt-1">
+          <div style="flex:1">
+            <label for="reifen-haendler">Reifen gekauft bei</label>
+            <input type="text" id="reifen-haendler" placeholder="z.B. BestDrive, Reifen WN">
+          </div>
+          <div style="flex:1">
+            <label for="reifen-kaufdatum">Reifen Kaufdatum (letzter Satz)</label>
+            <input type="date" id="reifen-kaufdatum">
+          </div>
+        </div>
+
+        <label for="notizen" class="mt-1">Allgemeine Notizen (Service, Besonderheiten…)</label>
+        <textarea id="notizen"></textarea>
+
+        <div class="flex mt-2">
+          <button type="submit" class="btn-primary">Speichern</button>
+          <button type="button" class="btn-danger" onclick="deleteVehicle()" id="delete-vehicle-btn" style="display:none;">Fahrzeug löschen</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- Rechte Seite: Detailansicht & Tanken -->
+    <section class="card" id="details-section">
+      <div class="flex-between">
+        <h2 id="detail-title">Kein Fahrzeug ausgewählt</h2>
+        <span id="detail-subtitle" class="small-text"></span>
+      </div>
+
+      <div id="detail-content" style="display:none;">
+        <h3>Leasing & Pickerl</h3>
+        <div class="flex">
+          <div style="flex:1">
+            <div class="small-text">Leasing Status:</div>
+            <div id="leasing-status-display"></div>
+          </div>
+          <div style="flex:1">
+            <div class="small-text">Pickerl Status:</div>
+            <div id="pickerl-status-display"></div>
+          </div>
+        </div>
+
+        <h3 class="mt-3">Reifen</h3>
+        <div class="small-text" id="reifen-display"></div>
+
+        <h3 class="mt-3">Tanken</h3>
+        <form id="fuel-form" onsubmit="addFuelEntry(event)">
+          <div class="flex">
+            <div style="flex:1">
+              <label for="fuel-datum">Datum</label>
+              <input type="date" id="fuel-datum" required>
+            </div>
+            <div style="flex:1">
+              <label for="fuel-betrag">Betrag (€)</label>
+              <input type="number" id="fuel-betrag" step="0.01" required>
+            </div>
+          </div>
+
+          <div class="flex mt-1">
+            <div style="flex:1">
+              <label for="fuel-liter">Menge (Liter)</label>
+              <input type="number" id="fuel-liter" step="0.01">
+            </div>
+            <div style="flex:1">
+              <label for="fuel-km">Kilometerstand</label>
+              <input type="number" id="fuel-km" step="1">
+            </div>
+          </div>
+
+          <label for="fuel-rechnungsinfo" class="mt-1">Rechnungsinfo (Nummer / Datei im PC-Ordner)</label>
+          <input type="text" id="fuel-rechnungsinfo" placeholder="z.B. 2025-001 Tankstelle XY.pdf">
+
+          <div class="flex mt-2">
+            <button type="submit" class="btn-primary btn-small">Tankvorgang speichern</button>
+            <span class="small-text">Die PDF/Foto-Rechnungen kannst du parallel in einem Windows-Ordner ablegen.</span>
+          </div>
+        </form>
+
+        <table class="mt-2" id="fuel-table">
+          <thead>
+            <tr>
+              <th>Datum</th>
+              <th>Betrag €</th>
+              <th>Liter</th>
+              <th>KM</th>
+              <th>Rechnung</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="fuel-tbody">
+            <!-- Dynamisch -->
+          </tbody>
+        </table>
+
+        <h3 class="mt-3">Tank-Diagramm (Betrag über Zeit)</h3>
+        <canvas id="fuel-chart" height="140"></canvas>
+      </div>
+
+      <div id="no-detail" class="small-text mt-2">
+        Bitte ein Fahrzeug in der Liste links auswählen oder neu anlegen.
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const STORAGE_KEY = 'fuhrpark_data_v1';
+    let data = { vehicles: [] };
+    let selectedVehicleId = null;
+    let fuelChart = null;
+
+    function loadData() {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        try {
+          data = JSON.parse(raw);
+          if (!data.vehicles) data.vehicles = [];
+        } catch (e) {
+          console.error('Fehler beim Laden der Daten:', e);
+          data = { vehicles: [] };
+        }
+      }
+    }
+
+    function saveData() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    }
+
+    function generateId() {
+      return 'veh_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
+    }
+
+    function formatDate(dateStr) {
+      if (!dateStr) return '';
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return '';
+      const dd = String(d.getDate()).padStart(2, '0');
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const yyyy = d.getFullYear();
+      return dd + '.' + mm + '.' + yyyy;
+    }
+
+    function diffInMonths(fromDateStr) {
+      if (!fromDateStr) return null;
+      const now = new Date();
+      const end = new Date(fromDateStr);
+      if (isNaN(end.getTime())) return null;
+      const years = end.getFullYear() - now.getFullYear();
+      const months = end.getMonth() - now.getMonth();
+      return years * 12 + months;
+    }
+
+    function getStatusPill(status) {
+      const span = document.createElement('span');
+      span.classList.add('status-pill');
+      if (status === 'ok') {
+        span.classList.add('status-green');
+        span.textContent = 'OK';
+      } else if (status === 'bald') {
+        span.classList.add('status-orange');
+        span.textContent = 'Nahe Tausch';
+      } else if (status === 'tausch') {
+        span.classList.add('status-red');
+        span.textContent = 'Tausch fällig';
+      } else {
+        span.classList.add('status-gray');
+        span.textContent = '–';
+      }
+      return span;
+    }
+
+    function getPickerlStatus(pickerlDateStr) {
+      if (!pickerlDateStr) return { text: 'kein Datum', cls: 'status-gray' };
+      const now = new Date();
+      const end = new Date(pickerlDateStr);
+      if (isNaN(end.getTime())) return { text: 'ungültiges Datum', cls: 'status-gray' };
+      const diffDays = Math.round((end - now) / (1000 * 60 * 60 * 24));
+      if (diffDays < 0) {
+        return { text: 'abgelaufen (' + formatDate(pickerlDateStr) + ')', cls: 'status-red' };
+      } else if (diffDays <= 30) {
+        return { text: 'bald fällig (' + formatDate(pickerlDateStr) + ')', cls: 'status-orange' };
+      } else {
+        return { text: 'OK bis ' + formatDate(pickerlDateStr), cls: 'status-green' };
+      }
+    }
+
+    function getLeasingStatus(leasingDateStr) {
+      if (!leasingDateStr) return { text: 'kein Leasingdatum', cls: 'status-gray' };
+      const months = diffInMonths(leasingDateStr);
+      const dateFormatted = formatDate(leasingDateStr);
+      if (months === null) return { text: 'ungültiges Datum', cls: 'status-gray' };
+      if (months < 0) {
+        return { text: 'Leasing abgelaufen (' + dateFormatted + ')', cls: 'status-red' };
+      } else if (months <= 6) {
+        return { text: 'läuft aus in ca. ' + months + ' Monaten (' + dateFormatted + ')', cls: 'status-orange' };
+      } else {
+        return { text: 'läuft noch ca. ' + months + ' Monate (bis ' + dateFormatted + ')', cls: 'status-green' };
+      }
+    }
+
+    function renderVehicles() {
+      const tbody = document.getElementById('vehicles-tbody');
+      tbody.innerHTML = '';
+      data.vehicles.forEach(v => {
+        const tr = document.createElement('tr');
+
+        const tdKz = document.createElement('td');
+        tdKz.textContent = v.kennzeichen || '';
+        tr.appendChild(tdKz);
+
+        const tdMonteur = document.createElement('td');
+        tdMonteur.textContent = v.monteur || '';
+        tr.appendChild(tdMonteur);
+
+        const tdLeasing = document.createElement('td');
+        const leasingStatus = getLeasingStatus(v.leasingBis);
+        const leasingSpan = document.createElement('span');
+        leasingSpan.classList.add('badge');
+        leasingSpan.textContent = leasingStatus.text;
+        tr.appendChild(document.createElement('td')).appendChild(leasingSpan);
+
+        const tdPickerl = document.createElement('td');
+        const pStatus = getPickerlStatus(v.pickerlBis);
+        const pSpan = document.createElement('span');
+        pSpan.classList.add('badge');
+        pSpan.textContent = pStatus.text;
+        tr.appendChild(document.createElement('td')).appendChild(pSpan);
+
+        const tdAction = document.createElement('td');
+        const btn = document.createElement('button');
+        btn.textContent = 'Öffnen';
+        btn.classList.add('btn-secondary', 'btn-small');
+        btn.onclick = () => selectVehicle(v.id);
+        tdAction.appendChild(btn);
+        tr.appendChild(tdAction);
+
+        tbody.appendChild(tr);
+      });
+    }
+
+    function resetVehicleForm() {
+      document.getElementById('vehicle-id').value = '';
+      document.getElementById('kennzeichen').value = '';
+      document.getElementById('monteur').value = '';
+      document.getElementById('marke').value = '';
+      document.getElementById('gewicht').value = '';
+      document.getElementById('pickerl-bis').value = '';
+      document.getElementById('leasing-bis').value = '';
+      document.getElementById('leasing-info').value = '';
+      document.getElementById('reifen-sommer-status').value = '';
+      document.getElementById('reifen-winter-status').value = '';
+      document.getElementById('reifen-haendler').value = '';
+      document.getElementById('reifen-kaufdatum').value = '';
+      document.getElementById('notizen').value = '';
+      document.getElementById('delete-vehicle-btn').style.display = 'none';
+    }
+
+    function saveVehicle(event) {
+      event.preventDefault();
+      const id = document.getElementById('vehicle-id').value || generateId();
+
+      const vehicle = {
+        id,
+        kennzeichen: document.getElementById('kennzeichen').value.trim(),
+        monteur: document.getElementById('monteur').value.trim(),
+        marke: document.getElementById('marke').value.trim(),
+        gewicht: document.getElementById('gewicht').value ? parseFloat(document.getElementById('gewicht').value) : null,
+        pickerlBis: document.getElementById('pickerl-bis').value || null,
+        leasingBis: document.getElementById('leasing-bis').value || null,
+        leasingInfo: document.getElementById('leasing-info').value.trim(),
+        reifenSommerStatus: document.getElementById('reifen-sommer-status').value,
+        reifenWinterStatus: document.getElementById('reifen-winter-status').value,
+        reifenHaendler: document.getElementById('reifen-haendler').value.trim(),
+        reifenKaufdatum: document.getElementById('reifen-kaufdatum').value || null,
+        notizen: document.getElementById('notizen').value.trim()
+      };
+
+      let existing = data.vehicles.find(v => v.id === id);
+      if (existing) {
+        // fuelEntries behalten
+        vehicle.fuelEntries = existing.fuelEntries || [];
+        Object.assign(existing, vehicle);
+      } else {
+        vehicle.fuelEntries = [];
+        data.vehicles.push(vehicle);
+      }
+
+      saveData();
+      renderVehicles();
+      document.getElementById('vehicle-id').value = id;
+      document.getElementById('delete-vehicle-btn').style.display = 'inline-block';
+      selectVehicle(id);
+    }
+
+    function deleteVehicle() {
+      const id = document.getElementById('vehicle-id').value;
+      if (!id) return;
+      if (!confirm('Fahrzeug wirklich löschen?')) return;
+      data.vehicles = data.vehicles.filter(v => v.id !== id);
+      saveData();
+      renderVehicles();
+      resetVehicleForm();
+      selectedVehicleId = null;
+      updateDetailView();
+    }
+
+    function selectVehicle(id) {
+      selectedVehicleId = id;
+      const v = data.vehicles.find(v => v.id === id);
+      if (!v) return;
+
+      // Formular mit Daten füllen
+      document.getElementById('vehicle-id').value = v.id;
+      document.getElementById('kennzeichen').value = v.kennzeichen || '';
+      document.getElementById('monteur').value = v.monteur || '';
+      document.getElementById('marke').value = v.marke || '';
+      document.getElementById('gewicht').value = v.gewicht != null ? v.gewicht : '';
+      document.getElementById('pickerl-bis').value = v.pickerlBis || '';
+      document.getElementById('leasing-bis').value = v.leasingBis || '';
+      document.getElementById('leasing-info').value = v.leasingInfo || '';
+      document.getElementById('reifen-sommer-status').value = v.reifenSommerStatus || '';
+      document.getElementById('reifen-winter-status').value = v.reifenWinterStatus || '';
+      document.getElementById('reifen-haendler').value = v.reifenHaendler || '';
+      document.getElementById('reifen-kaufdatum').value = v.reifenKaufdatum || '';
+      document.getElementById('notizen').value = v.notizen || '';
+      document.getElementById('delete-vehicle-btn').style.display = 'inline-block';
+
+      updateDetailView();
+    }
+
+    function updateDetailView() {
+      const title = document.getElementById('detail-title');
+      const subtitle = document.getElementById('detail-subtitle');
+      const detailContent = document.getElementById('detail-content');
+      const noDetail = document.getElementById('no-detail');
+
+      if (!selectedVehicleId) {
+        title.textContent = 'Kein Fahrzeug ausgewählt';
+        subtitle.textContent = '';
+        detailContent.style.display = 'none';
+        noDetail.style.display = 'block';
+        if (fuelChart) {
+          fuelChart.destroy();
+          fuelChart = null;
+        }
+        return;
+      }
+
+      const v = data.vehicles.find(v => v.id === selectedVehicleId);
+      if (!v) return;
+
+      title.textContent = v.kennzeichen || '(ohne Kennzeichen)';
+      subtitle.textContent = (v.monteur || '') + (v.marke ? ' – ' + v.marke : '');
+
+      detailContent.style.display = 'block';
+      noDetail.style.display = 'none';
+
+      const leasingStatus = getLeasingStatus(v.leasingBis);
+      const leasingDiv = document.getElementById('leasing-status-display');
+      leasingDiv.innerHTML = '';
+      const leasingSpan = document.createElement('span');
+      leasingSpan.classList.add('status-pill', leasingStatus.cls);
+      leasingSpan.textContent = leasingStatus.text + (v.leasingInfo ? ' | ' + v.leasingInfo : '');
+      leasingDiv.appendChild(leasingSpan);
+
+      const pStatus = getPickerlStatus(v.pickerlBis);
+      const pickerlDiv = document.getElementById('pickerl-status-display');
+      pickerlDiv.innerHTML = '';
+      const pSpan = document.createElement('span');
+      pSpan.classList.add('status-pill', pStatus.cls);
+      pSpan.textContent = pStatus.text;
+      pickerlDiv.appendChild(pSpan);
+
+      const reifenDiv = document.getElementById('reifen-display');
+      const sommerPill = getStatusPill(v.reifenSommerStatus || '');
+      const winterPill = getStatusPill(v.reifenWinterStatus || '');
+      reifenDiv.innerHTML = '';
+      reifenDiv.appendChild(document.createTextNode('Sommer: '));
+      reifenDiv.appendChild(sommerPill);
+      reifenDiv.appendChild(document.createTextNode(' | Winter: '));
+      reifenDiv.appendChild(winterPill);
+      if (v.reifenHaendler || v.reifenKaufdatum) {
+        const info = document.createElement('div');
+        info.classList.add('mt-1');
+        info.textContent = 'Letzter Kauf: ' +
+          (v.reifenHaendler || '-') +
+          (v.reifenKaufdatum ? ' am ' + formatDate(v.reifenKaufdatum) : '');
+        reifenDiv.appendChild(info);
+      }
+
+      renderFuelTable();
+      renderFuelChart();
+    }
+
+    function addFuelEntry(event) {
+      event.preventDefault();
+      if (!selectedVehicleId) return;
+
+      const v = data.vehicles.find(v => v.id === selectedVehicleId);
+      if (!v) return;
+
+      const entry = {
+        id: 'fuel_' + Date.now() + '_' + Math.floor(Math.random() * 10000),
+        datum: document.getElementById('fuel-datum').value,
+        betrag: document.getElementById('fuel-betrag').value ? parseFloat(document.getElementById('fuel-betrag').value) : 0,
+        liter: document.getElementById('fuel-liter').value ? parseFloat(document.getElementById('fuel-liter').value) : null,
+        km: document.getElementById('fuel-km').value ? parseInt(document.getElementById('fuel-km').value, 10) : null,
+        rechnungsinfo: document.getElementById('fuel-rechnungsinfo').value.trim()
+      };
+
+      if (!entry.datum) {
+        alert('Datum ist Pflicht.');
+        return;
+      }
+
+      v.fuelEntries = v.fuelEntries || [];
+      v.fuelEntries.push(entry);
+
+      saveData();
+      document.getElementById('fuel-form').reset();
+      renderFuelTable();
+      renderFuelChart();
+    }
+
+    function deleteFuelEntry(id) {
+      if (!selectedVehicleId) return;
+      const v = data.vehicles.find(v => v.id === selectedVehicleId);
+      if (!v) return;
+      v.fuelEntries = (v.fuelEntries || []).filter(e => e.id !== id);
+      saveData();
+      renderFuelTable();
+      renderFuelChart();
+    }
+
+    function renderFuelTable() {
+      const tbody = document.getElementById('fuel-tbody');
+      tbody.innerHTML = '';
+      if (!selectedVehicleId) return;
+      const v = data.vehicles.find(v => v.id === selectedVehicleId);
+      if (!v) return;
+      const entries = (v.fuelEntries || []).slice().sort((a, b) => {
+        return new Date(a.datum) - new Date(b.datum);
+      });
+
+      entries.forEach(e => {
+        const tr = document.createElement('tr');
+
+        const tdDatum = document.createElement('td');
+        tdDatum.textContent = formatDate(e.datum);
+        tr.appendChild(tdDatum);
+
+        const tdBetrag = document.createElement('td');
+        tdBetrag.textContent = e.betrag != null ? e.betrag.toFixed(2) : '';
+        tr.appendChild(tdBetrag);
+
+        const tdLiter = document.createElement('td');
+        tdLiter.textContent = e.liter != null ? e.liter.toFixed(2) : '';
+        tr.appendChild(tdLiter);
+
+        const tdKm = document.createElement('td');
+        tdKm.textContent = e.km != null ? e.km : '';
+        tr.appendChild(tdKm);
+
+        const tdRechnung = document.createElement('td');
+        tdRechnung.textContent = e.rechnungsinfo || '';
+        tr.appendChild(tdRechnung);
+
+        const tdAction = document.createElement('td');
+        const btn = document.createElement('button');
+        btn.textContent = 'X';
+        btn.classList.add('btn-danger', 'btn-small');
+        btn.onclick = () => deleteFuelEntry(e.id);
+        tdAction.appendChild(btn);
+        tr.appendChild(tdAction);
+
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderFuelChart() {
+      const ctx = document.getElementById('fuel-chart').getContext('2d');
+      if (!selectedVehicleId) {
+        if (fuelChart) {
+          fuelChart.destroy();
+          fuelChart = null;
+        }
+        return;
+      }
+      const v = data.vehicles.find(v => v.id === selectedVehicleId);
+      if (!v) return;
+
+      const entries = (v.fuelEntries || []).slice().sort((a, b) => {
+        return new Date(a.datum) - new Date(b.datum);
+      });
+
+      const labels = entries.map(e => formatDate(e.datum));
+      const values = entries.map(e => e.betrag || 0);
+
+      if (fuelChart) {
+        fuelChart.destroy();
+      }
+
+      fuelChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Tankkosten (€)',
+            data: values
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: {
+              display: true
+            }
+          },
+          scales: {
+            x: {
+              ticks: { autoSkip: true, maxRotation: 0 }
+            },
+            y: {
+              beginAtZero: true
+            }
+          }
+        }
+      });
+    }
+
+    // Init
+    loadData();
+    renderVehicles();
+    updateDetailView();
+  </script>
+</body>
+</html>
