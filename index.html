@@ -221,6 +221,12 @@
 
      
       </table>
+<h3 class="mt-3">Kostenübersicht</h3>
+
+<label>Jahr auswählen</label>
+<select id="cost-year" onchange="renderCosts()"></select>
+
+<div id="cost-summary" style="margin-top:8px;font-size:14px"></div>
 
       <h3 class="mt-3">Rechnungen</h3>
       <form id="invoice-form" onsubmit="addInvoice(event)">
