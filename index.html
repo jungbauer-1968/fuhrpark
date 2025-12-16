@@ -523,4 +523,447 @@ function statusPillForReifen(val){
   return `<span class="status-pill gray">–</span>`;
 }
 
-/** =**
+/** =========================
+ *  RENDER
+ *  ========================= */
+function renderVehicles(){
+  const q = (document.getElementById("search").value || "").trim().toLowerCase();
+  const tbody = document.getElementById("vehicles-tbody");
+  tbody.innerHTML = "";
+
+  const list = (data.vehicles || []).slice().sort((a,b) => (a.kennzeichen||"").localeCompare(b.kennzeichen||""));
+
+  list.forEach(v => {
+    const hay = ((v.kennzeichen||"")+" "+(v.monteur||"")+" "+(v.marke||"")).toLowerCase();
+    if(q && !hay.includes(q)) return;
+
+    const p = getPickerlStatus(v.pickerlBis);
+    const l = getLeasingStatus(v.leasingBis);
+
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${v.kennzeichen||""}</td>
+      <td>${v.monteur||""}</td>
+      <td><span class="badge">${p.text}</span></td>
+      <td><span class="badge">${l.text}</span></td>
+      <td><button class="btn-secondary btn-small" onclick="selectVehicle('${v.id}')">Öffnen</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function resetVehicleForm(){
+  document.getElementById("vehicle-id").value = "";
+  document.getElementById("kennzeichen").value = "";
+  document.getElementById("monteur").value = "";
+  document.getElementById("marke").value = "";
+  document.getElementById("gewicht").value = "";
+  document.getElementById("pickerl-bis").value = "";
+  document.getElementById("leasing-bis").value = "";
+  document.getElementById("leasing-info").value = "";
+  document.getElementById("reifen-sommer-status").value = "";
+  document.getElementById("reifen-winter-status").value = "";
+  document.getElementById("reifen-allwetter-status").value = "";
+  document.getElementById("reifen-haendler").value = "";
+  document.getElementById("reifen-kaufdatum").value = "";
+  document.getElementById("service-datum").value = "";
+  document.getElementById("notizen").value = "";
+  document.getElementById("delete-vehicle-btn").style.display = "none";
+}
+
+function selectVehicle(id){
+  selectedVehicleId = id;
+  const v = data.vehicles.find(x => x.id === id);
+  if(!v) return;
+
+  // Fill form
+  document.getElementById("vehicle-id").value = v.id;
+  document.getElementById("kennzeichen").value = v.kennzeichen || "";
+  document.getElementById("monteur").value = v.monteur || "";
+  document.getElementById("marke").value = v.marke || "";
+  document.getElementById("gewicht").value = (v.gewicht != null ? v.gewicht : "");
+  document.getElementById("pickerl-bis").value = v.pickerlBis || "";
+  document.getElementById("leasing-bis").value = v.leasingBis || "";
+  document.getElementById("leasing-info").value = v.leasingInfo || "";
+  document.getElementById("reifen-sommer-status").value = v.reifenSommerStatus || "";
+  document.getElementById("reifen-winter-status").value = v.reifenWinterStatus || "";
+  document.getElementById("reifen-allwetter-status").value = v.reifenAllwetterStatus || "";
+  document.getElementById("reifen-haendler").value = v.reifenHaendler || "";
+  document.getElementById("reifen-kaufdatum").value = v.reifenKaufdatum || "";
+  document.getElementById("service-datum").value = v.serviceDatum || "";
+  document.getElementById("notizen").value = v.notizen || "";
+
+  document.getElementById("delete-vehicle-btn").style.display = "inline-block";
+
+  // Detail view
+  document.getElementById("detail-title").textContent = v.kennzeichen || "(ohne Kennzeichen)";
+  document.getElementById("detail-subtitle").textContent = (v.monteur || "") + (v.marke ? " – " + v.marke : "");
+
+  const detailContent = document.getElementById("detail-content");
+  const noDetail = document.getElementById("no-detail");
+  detailContent.style.display = "block";
+  noDetail.style.display = "none";
+
+  const p = getPickerlStatus(v.pickerlBis);
+  const l = getLeasingStatus(v.leasingBis);
+
+  document.getElementById("pickerl-status-display").innerHTML = `<span class="status-pill ${p.cls}">${p.text}</span>`;
+  document.getElementById("leasing-status-display").innerHTML = `<span class="status-pill ${l.cls}">${l.text}${v.leasingInfo ? " | " + v.leasingInfo : ""}</span>`;
+
+  document.getElementById("reifen-display").innerHTML = `
+    Sommer: ${statusPillForReifen(v.reifenSommerStatus)} &nbsp;|&nbsp;
+    Winter: ${statusPillForReifen(v.reifenWinterStatus)} &nbsp;|&nbsp;
+    Allwetter: ${statusPillForReifen(v.reifenAllwetterStatus)}
+    <div class="mt-1">
+      Händler: <b>${(v.reifenHaendler||"-")}</b>
+      ${v.reifenKaufdatum ? " | Kaufdatum: <b>"+v.reifenKaufdatum+"</b>" : ""}
+    </div>
+  `;
+
+  document.getElementById("service-display").innerHTML =
+    v.serviceDatum ? `Service gemacht am: <b>${v.serviceDatum}</b>` : `<span class="badge">kein Service-Datum</span>`;
+
+  document.getElementById("notizen-display").textContent = v.notizen || "–";
+
+  renderFuelTable();
+  renderInvoices();
+}
+
+function saveVehicle(event){
+  event.preventDefault();
+  const id = document.getElementById("vehicle-id").value || ("veh_" + Date.now() + "_" + Math.floor(Math.random()*10000));
+  const existing = data.vehicles.find(x => x.id === id);
+
+  const payload = {
+    id,
+    kennzeichen: document.getElementById("kennzeichen").value.trim(),
+    monteur: document.getElementById("monteur").value.trim(),
+    marke: document.getElementById("marke").value.trim(),
+    gewicht: document.getElementById("gewicht").value ? Number(document.getElementById("gewicht").value) : null,
+    pickerlBis: normalizeMonth(document.getElementById("pickerl-bis").value || ""),
+    leasingBis: normalizeMonth(document.getElementById("leasing-bis").value || ""),
+    leasingInfo: document.getElementById("leasing-info").value.trim(),
+    reifenSommerStatus: document.getElementById("reifen-sommer-status").value,
+    reifenWinterStatus: document.getElementById("reifen-winter-status").value,
+    reifenAllwetterStatus: document.getElementById("reifen-allwetter-status").value,
+    reifenHaendler: document.getElementById("reifen-haendler").value.trim(),
+    reifenKaufdatum: document.getElementById("reifen-kaufdatum").value || "",
+    serviceDatum: document.getElementById("service-datum").value || "",
+    notizen: document.getElementById("notizen").value.trim()
+  };
+
+  if(existing){
+    // keep arrays
+    payload.fuelEntries = existing.fuelEntries || [];
+    payload.invoices = existing.invoices || [];
+    Object.assign(existing, payload);
+  } else {
+    payload.fuelEntries = [];
+    payload.invoices = [];
+    data.vehicles.push(payload);
+  }
+
+  saveData();
+  renderVehicles();
+  document.getElementById("vehicle-id").value = id;
+  document.getElementById("delete-vehicle-btn").style.display = "inline-block";
+  selectVehicle(id);
+}
+
+function deleteVehicle(){
+  const id = document.getElementById("vehicle-id").value;
+  if(!id) return;
+  if(!confirm("Fahrzeug wirklich löschen?")) return;
+
+  data.vehicles = data.vehicles.filter(v => v.id !== id);
+  saveData();
+  renderVehicles();
+  resetVehicleForm();
+  selectedVehicleId = null;
+
+  document.getElementById("detail-content").style.display = "none";
+  document.getElementById("no-detail").style.display = "block";
+  document.getElementById("detail-title").textContent = "Kein Fahrzeug ausgewählt";
+  document.getElementById("detail-subtitle").textContent = "";
+}
+
+/** =========================
+ *  TANKEN (ohne Diagramm)
+ *  ========================= */
+function addFuelEntry(event){
+  event.preventDefault();
+  if(!selectedVehicleId) return;
+
+  const v = data.vehicles.find(x => x.id === selectedVehicleId);
+  if(!v) return;
+
+  const entry = {
+    id: "fuel_" + Date.now() + "_" + Math.floor(Math.random()*10000),
+    datum: document.getElementById("fuel-datum").value,
+    betrag: Number(document.getElementById("fuel-betrag").value || 0),
+    liter: document.getElementById("fuel-liter").value ? Number(document.getElementById("fuel-liter").value) : null,
+    km: document.getElementById("fuel-km").value ? Number(document.getElementById("fuel-km").value) : null,
+    rechnungsinfo: document.getElementById("fuel-rechnungsinfo").value.trim()
+  };
+
+  v.fuelEntries = v.fuelEntries || [];
+  v.fuelEntries.push(entry);
+
+  saveData();
+  document.getElementById("fuel-form").reset();
+  renderFuelTable();
+}
+
+function deleteFuelEntry(id){
+  const v = data.vehicles.find(x => x.id === selectedVehicleId);
+  if(!v) return;
+  v.fuelEntries = (v.fuelEntries || []).filter(e => e.id !== id);
+  saveData();
+  renderFuelTable();
+}
+
+function renderFuelTable(){
+  const tbody = document.getElementById("fuel-tbody");
+  tbody.innerHTML = "";
+  if(!selectedVehicleId) return;
+
+  const v = data.vehicles.find(x => x.id === selectedVehicleId);
+  if(!v) return;
+
+  const entries = (v.fuelEntries || []).slice().sort((a,b)=> new Date(a.datum) - new Date(b.datum));
+  entries.forEach(e => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${e.datum || ""}</td>
+      <td>${(e.betrag != null ? Number(e.betrag).toFixed(2) : "")}</td>
+      <td>${(e.liter != null ? Number(e.liter).toFixed(2) : "")}</td>
+      <td>${(e.km != null ? e.km : "")}</td>
+      <td>${e.rechnungsinfo || ""}</td>
+      <td><button class="btn-danger btn-small" onclick="deleteFuelEntry('${e.id}')">X</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+/** =========================
+ *  RECHNUNGEN (Upload lokal)
+ *  ========================= */
+function addInvoice(event){
+  event.preventDefault();
+  if(!selectedVehicleId) return;
+
+  const v = data.vehicles.find(x => x.id === selectedVehicleId);
+  if(!v) return;
+
+  const fileInput = document.getElementById("inv-file");
+  const file = fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
+
+  const invoiceBase = {
+    id: "inv_" + Date.now() + "_" + Math.floor(Math.random()*10000),
+    date: document.getElementById("inv-date").value,
+    amount: Number(document.getElementById("inv-amount").value || 0),
+    vendor: document.getElementById("inv-vendor").value.trim(),
+    type: document.getElementById("inv-type").value,
+    file: null
+  };
+
+  if(!file){
+    alert("Bitte Datei auswählen (PDF/JPG/PNG).");
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    invoiceBase.file = { name: file.name, type: file.type, data: reader.result };
+    v.invoices = v.invoices || [];
+    v.invoices.push(invoiceBase);
+
+    saveData();
+    renderInvoices();
+    document.getElementById("invoice-form").reset();
+  };
+  reader.readAsDataURL(file);
+}
+
+function deleteInvoice(id){
+  const v = data.vehicles.find(x => x.id === selectedVehicleId);
+  if(!v) return;
+  v.invoices = (v.invoices || []).filter(i => i.id !== id);
+  saveData();
+  renderInvoices();
+}
+
+function renderInvoices(){
+  const tbody = document.getElementById("invoice-tbody");
+  tbody.innerHTML = "";
+  if(!selectedVehicleId) return;
+
+  const v = data.vehicles.find(x => x.id === selectedVehicleId);
+  if(!v) return;
+
+  const list = (v.invoices || []).slice().sort((a,b)=> (a.date||"").localeCompare(b.date||""));
+  list.forEach(inv => {
+    const fileLink = inv.file && inv.file.data
+      ? `<a href="${inv.file.data}" target="_blank">${inv.file.name || "Datei"}</a>`
+      : "";
+
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${inv.date || ""}</td>
+      <td>${inv.type || ""}</td>
+      <td>${(inv.amount != null ? Number(inv.amount).toFixed(2) : "")}</td>
+      <td>${inv.vendor || ""}</td>
+      <td>${fileLink}</td>
+      <td><button class="btn-danger btn-small" onclick="deleteInvoice('${inv.id}')">X</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+/** =========================
+ *  BACKUP/RESTORE (CSV wrapper)
+ *  ========================= */
+function exportBackup(){
+  // CSV wrapper: 1st line header, 2nd line base64(json)
+  const json = JSON.stringify(data);
+  const b64 = btoa(unescape(encodeURIComponent(json)));
+  const csv = "DATA\n" + b64 + "\n";
+
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "fuhrpark_backup_" + new Date().toISOString().slice(0,10) + ".csv";
+  a.click();
+}
+
+function importBackup(event){
+  const file = event.target.files && event.target.files[0] ? event.target.files[0] : null;
+  if(!file) return;
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    const text = String(reader.result || "");
+    const lines = text.split(/\r?\n/).filter(Boolean);
+    if(lines.length < 2 || lines[0].trim() !== "DATA"){
+      alert("Backup-Datei ungültig.");
+      return;
+    }
+
+    let imported;
+    try{
+      const json = decodeURIComponent(escape(atob(lines[1].trim())));
+      imported = JSON.parse(json);
+    }catch(e){
+      alert("Backup konnte nicht gelesen werden.");
+      return;
+    }
+
+    const replace = confirm("OK = ALLES ERSETZEN\nAbbrechen = ANHÄNGEN");
+    if(replace){
+      data = { vehicles: (imported.vehicles || []).map(migrateVehicle) };
+    } else {
+      const addList = (imported.vehicles || []).map(migrateVehicle);
+      data.vehicles = mergeVehicleLists(data.vehicles.map(migrateVehicle), addList);
+    }
+
+    saveData();
+    renderVehicles();
+    alert("Backup importiert ✅");
+  };
+  reader.readAsText(file);
+}
+
+/** =========================
+ *  CSV IMPORT (robust)
+ *  ========================= */
+function detectDelimiter(firstLine){
+  const commas = (firstLine.match(/,/g) || []).length;
+  const semis  = (firstLine.match(/;/g) || []).length;
+  return semis > commas ? ";" : ",";
+}
+
+function importCSV(event){
+  const file = event.target.files && event.target.files[0] ? event.target.files[0] : null;
+  if(!file) return;
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    const text = String(reader.result || "");
+    const lines = text.split(/\r?\n/).filter(l => l.trim().length);
+    if(lines.length < 2){
+      alert("CSV leer/ungültig.");
+      return;
+    }
+
+    const delim = detectDelimiter(lines[0]);
+    const header = lines[0].split(delim).map(h => h.trim().toLowerCase());
+
+    const idx = (nameParts) => {
+      for(let i=0;i<header.length;i++){
+        const h = header[i];
+        if(nameParts.some(p => h.includes(p))) return i;
+      }
+      return -1;
+    };
+
+    // Try to map by header names (best)
+    const iKenn = idx(["kenn", "kz", "kennzeichen", "nummernschild"]);
+    const iMon  = idx(["monteur", "fahrer"]);
+    const iMark = idx(["marke", "modell", "fahrzeug"]);
+    const iGew  = idx(["gewicht", "t "]);
+    const iPick = idx(["pickerl", "pickel", "tüv", "§57"]);
+    const iLeas = idx(["leasing"]);
+    const iLeasInfo = idx(["leasing info", "leasinginfo", "bank", "vertrag"]);
+    const iNote = idx(["notiz", "vermerk", "bemerk", "besonder"]);
+    const iServ = idx(["service", "wartung"]);
+
+    let added = 0;
+
+    for(let r=1; r<lines.length; r++){
+      const cols = lines[r].split(delim);
+      if(cols.length < 2) continue;
+
+      const kenn = iKenn >= 0 ? (cols[iKenn] || "").trim() : (cols[0] || "").trim();
+      if(!kenn) continue;
+
+      const v = {
+        id: "veh_" + Date.now() + "_" + Math.floor(Math.random()*10000) + "_" + r,
+        kennzeichen: kenn,
+        monteur: iMon >= 0 ? (cols[iMon] || "").trim() : "",
+        marke: iMark >= 0 ? (cols[iMark] || "").trim() : "",
+        gewicht: iGew >= 0 && (cols[iGew] || "").trim() ? Number(String(cols[iGew]).replace(",", ".").replace("t","").trim()) : null,
+        pickerlBis: iPick >= 0 ? normalizeMonth((cols[iPick] || "").trim()) : "",
+        leasingBis: iLeas >= 0 ? normalizeMonth((cols[iLeas] || "").trim()) : "",
+        leasingInfo: iLeasInfo >= 0 ? (cols[iLeasInfo] || "").trim() : "",
+        serviceDatum: iServ >= 0 ? normalizeDate((cols[iServ] || "").trim()).slice(0,10) : "",
+        notizen: iNote >= 0 ? (cols[iNote] || "").trim() : "",
+        reifenSommerStatus: "",
+        reifenWinterStatus: "",
+        reifenAllwetterStatus: "",
+        reifenHaendler: "",
+        reifenKaufdatum: "",
+        fuelEntries: [],
+        invoices: []
+      };
+
+      data.vehicles.push(v);
+      added++;
+    }
+
+    saveData();
+    renderVehicles();
+    alert("CSV-Import fertig ✅ (" + added + " Fahrzeuge)");
+  };
+
+  reader.readAsText(file, "utf-8");
+}
+
+/** =========================
+ *  START
+ *  ========================= */
+loadData();
+renderVehicles();
+</script>
+</body>
+</html>
