@@ -192,6 +192,49 @@
           <!-- Dynamisch -->
         </tbody>
       </table>
+<h3 class="mt-3">Rechnungen</h3>
+
+<form onsubmit="addInvoice(event)">
+  <div class="flex">
+    <div style="flex:1">
+      <label>Datum</label>
+      <input type="date" id="inv-date" required>
+    </div>
+    <div style="flex:1">
+      <label>Betrag (€)</label>
+      <input type="number" step="0.01" id="inv-amount" required>
+    </div>
+  </div>
+
+  <label class="mt-1">Werkstatt / Händler</label>
+  <input type="text" id="inv-vendor">
+
+  <label class="mt-1">Typ</label>
+  <select id="inv-type">
+    <option>Service</option>
+    <option>Reifen</option>
+    <option>Sonstiges</option>
+  </select>
+
+  <label class="mt-1">Rechnung (PDF / Bild)</label>
+  <input type="file" id="inv-file" accept=".pdf,.jpg,.jpeg,.png">
+
+  <button class="btn-primary btn-small mt-2">Rechnung speichern</button>
+</form>
+
+<table class="mt-2">
+  <thead>
+    <tr>
+      <th>Datum</th>
+      <th>Typ</th>
+      <th>Betrag</th>
+      <th>Werkstatt</th>
+      <th>Datei</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody id="invoice-tbody"></tbody>
+</table>
 
       <hr class="mt-3">
 
