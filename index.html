@@ -1,197 +1,526 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-<meta charset="UTF-8">
-<title>Fuhrpark Verwaltung – Elektro Jungbauer</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<style>
-body{font-family:Arial,sans-serif;margin:0;background:#f3f4f6}
-header{background:#111827;color:#f9fafb;padding:1rem 1.5rem;display:flex;justify-content:space-between;align-items:center}
-main{padding:1rem;display:grid;grid-template-columns:1.1fr 1.4fr;gap:1rem}
-@media(max-width:900px){main{grid-template-columns:1fr}}
-.card{background:#fff;border-radius:.5rem;padding:1rem;box-shadow:0 1px 4px rgba(0,0,0,.08)}
-h2,h3{margin:.2rem 0 .5rem 0}
-label{font-size:.8rem}
-input,select,textarea{width:100%;padding:.3rem;margin:.1rem 0;border:1px solid #d1d5db;border-radius:.3rem;font-size:.85rem}
-button{border:none;border-radius:.3rem;padding:.35rem .7rem;font-size:.8rem;cursor:pointer}
-.btn-primary{background:#2563eb;color:#fff}
-.btn-secondary{background:#e5e7eb}
-.btn-danger{background:#dc2626;color:#fff}
-table{width:100%;border-collapse:collapse;font-size:.8rem}
-th,td{padding:.3rem;border-bottom:1px solid #e5e7eb;text-align:left}
-.status-pill{padding:.1rem .4rem;border-radius:999px;font-size:.7rem;color:#fff}
-.status-green{background:#16a34a}
-.status-orange{background:#ea580c}
-.status-red{background:#dc2626}
-.status-gray{background:#6b7280}
-.flex{display:flex;gap:.5rem;flex-wrap:wrap}
-.flex-between{display:flex;justify-content:space-between;align-items:center}
-.mt-2{margin-top:.5rem}.mt-3{margin-top:.8rem}
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Fuhrpark Verwaltung – Elektro Jungbauer</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin:0; background:#f3f4f6; }
+    header { background:#111827; color:#f9fafb; padding:1rem 1.5rem; display:flex; justify-content:space-between; align-items:center; }
+    header h1 { margin:0; font-size:1.15rem; }
+    header small { opacity:.85; }
+    main { padding:1rem; display:grid; grid-template-columns: 1.1fr 1.4fr; gap:1rem; }
+    @media (max-width: 980px){ main { grid-template-columns:1fr; } }
+    .card { background:#fff; border-radius:.6rem; padding:1rem; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+    h2 { margin:.1rem 0 .7rem; font-size:1rem; }
+    h3 { margin:1rem 0 .4rem; font-size:.95rem; }
+    label { display:block; font-size:.8rem; margin-top:.5rem; margin-bottom:.1rem; }
+    input[type="text"], input[type="date"], input[type="month"], input[type="number"], select, textarea {
+      width:100%; box-sizing:border-box; padding:.35rem .45rem;
+      border:1px solid #d1d5db; border-radius:.35rem; font-size:.85rem;
+    }
+    textarea { min-height:70px; }
+    button { border:none; border-radius:.35rem; padding:.4rem .8rem; cursor:pointer; font-size:.85rem; }
+    .btn-primary { background:#2563eb; color:#fff; }
+    .btn-secondary { background:#e5e7eb; color:#111827; }
+    .btn-danger { background:#dc2626; color:#fff; }
+    .btn-small { font-size:.75rem; padding:.25rem .55rem; }
+    table { width:100%; border-collapse:collapse; font-size:.8rem; }
+    th, td { padding:.35rem .4rem; border-bottom:1px solid #e5e7eb; text-align:left; vertical-align:top; }
+    th { background:#f9fafb; font-weight:600; }
+    .flex { display:flex; gap:.6rem; flex-wrap:wrap; align-items:center; }
+    .flex-between { display:flex; justify-content:space-between; align-items:center; gap:.5rem; flex-wrap:wrap; }
+    .mt-1{ margin-top:.25rem; } .mt-2{ margin-top:.5rem; } .mt-3{ margin-top:.8rem; }
+    .small { font-size:.78rem; color:#6b7280; }
+    .badge { background:#e5e7eb; border-radius:999px; padding:.1rem .5rem; font-size:.7rem; display:inline-block; }
+    .status-pill{ display:inline-block; padding:.12rem .5rem; border-radius:999px; font-size:.72rem; color:#fff; }
+    .green{ background:#16a34a; } .orange{ background:#ea580c; } .red{ background:#dc2626; } .gray{ background:#6b7280; }
+    hr { border:0; border-top:1px solid #e5e7eb; margin: .9rem 0; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+  </style>
 </head>
 <body>
-
 <header>
-  <h1>Fuhrpark Verwaltung</h1>
-  <small>Elektro Jungbauer – lokal gespeichert</small>
+  <div>
+    <h1>Fuhrpark Verwaltung</h1>
+    <small>Elektro Jungbauer – lokal gespeichert</small>
+  </div>
+  <div class="small mono" id="storageInfo"></div>
 </header>
-
-<h3 style="padding:1rem 1rem 0 1rem">Fahrzeuge importieren (CSV)</h3>
-<input style="margin-left:1rem" type="file" accept=".csv" onchange="importCSV(event)">
-<button onclick="exportBackup()" class="btn-secondary" style="margin-left:1rem">CSV‑Backup</button>
-<input style="margin-left:1rem" type="file" accept=".csv" onchange="importBackup(event)">
 
 <main>
 
-<section class="card">
-<h2>Fahrzeuge</h2>
-<table>
-<thead><tr><th>Kennzeichen</th><th>Monteur</th><th>Pickerl</th><th></th></tr></thead>
-<tbody id="vehicles-tbody"></tbody>
-</table>
+  <!-- LINKS -->
+  <section class="card">
+    <div class="flex-between">
+      <h2>Fahrzeuge</h2>
+      <button class="btn-secondary btn-small" onclick="resetVehicleForm()">Neu</button>
+    </div>
 
-<h3 class="mt-3">Fahrzeug anlegen</h3>
-<form onsubmit="saveVehicle(event)">
-<input type="hidden" id="vid">
-<label>Kennzeichen</label><input id="kennzeichen" required>
-<label>Monteur</label><input id="monteur">
-<label>Pickerl (Monat/Jahr)</label><input type="month" id="pickerl">
-<button class="btn-primary mt-2">Speichern</button>
-</form>
-</section>
+    <div class="mt-2">
+      <label>Suche (Kennzeichen / Monteur / Marke)</label>
+      <input type="text" id="search" placeholder="z.B. WN-..., Ali, VW..." oninput="renderVehicles()">
+    </div>
 
-<section class="card">
-<h2 id="detail-title">Kein Fahrzeug gewählt</h2>
-<div id="detail" style="display:none">
+    <table class="mt-2">
+      <thead>
+        <tr>
+          <th>Kennzeichen</th>
+          <th>Monteur</th>
+          <th>Pickerl</th>
+          <th>Leasing</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="vehicles-tbody"></tbody>
+    </table>
 
-<h3 class="mt-3">Rechnungen</h3>
-<form onsubmit="addInvoice(event)">
-<div class="flex">
-<input type="date" id="inv-date" required>
-<input type="number" id="inv-amount" step="0.01" placeholder="€" required>
-</div>
-<input id="inv-vendor" placeholder="Werkstatt">
-<select id="inv-type"><option>Service</option><option>Reifen</option><option>Sonstiges</option></select>
-<input type="file" id="inv-file" accept=".pdf,.jpg,.png">
-<button class="btn-primary mt-2">Rechnung speichern</button>
-</form>
+    <hr>
 
-<table class="mt-2">
-<thead><tr><th>Datum</th><th>Typ</th><th>Betrag</th><th>Datei</th><th></th></tr></thead>
-<tbody id="invoice-tbody"></tbody>
-</table>
+    <h3>Import / Backup</h3>
+    <div class="flex mt-2">
+      <div style="flex:1; min-width:240px;">
+        <label>CSV importieren (aus Excel)</label>
+        <input type="file" id="csvInput" accept=".csv" onchange="importCSV(event)">
+        <div class="small">Tipp: Excel als <b>CSV (UTF-8)</b> speichern.</div>
+      </div>
 
-</div>
-</section>
+      <div style="flex:1; min-width:240px;">
+        <label>Backup (CSV-Datei)</label>
+        <div class="flex">
+          <button class="btn-secondary btn-small" onclick="exportBackup()">CSV-Backup erstellen</button>
+          <input type="file" id="backupInput" accept=".csv" onchange="importBackup(event)">
+        </div>
+        <div class="small">Import fragt: <b>Ersetzen</b> oder <b>Anhängen</b>.</div>
+      </div>
+    </div>
+
+    <hr>
+
+    <h3>Fahrzeug anlegen / bearbeiten</h3>
+    <form id="vehicle-form" onsubmit="saveVehicle(event)">
+      <input type="hidden" id="vehicle-id">
+
+      <label>Kennzeichen</label>
+      <input type="text" id="kennzeichen" required>
+
+      <label>Monteur</label>
+      <input type="text" id="monteur">
+
+      <label>Auto Marke / Modell</label>
+      <input type="text" id="marke">
+
+      <div class="flex">
+        <div style="flex:1; min-width:180px;">
+          <label>Gewicht (t)</label>
+          <input type="number" step="0.01" id="gewicht">
+        </div>
+        <div style="flex:1; min-width:180px;">
+          <label>Pickerl (Monat/Jahr)</label>
+          <input type="month" id="pickerl-bis">
+        </div>
+      </div>
+
+      <div class="flex mt-1">
+        <div style="flex:1; min-width:180px;">
+          <label>Leasing läuft bis (Monat/Jahr)</label>
+          <input type="month" id="leasing-bis">
+        </div>
+        <div style="flex:1; min-width:180px;">
+          <label>Leasing Info (Bank, Vertrag…)</label>
+          <input type="text" id="leasing-info">
+        </div>
+      </div>
+
+      <h3 class="mt-3">Reifenstatus</h3>
+      <div class="flex">
+        <div style="flex:1; min-width:180px;">
+          <label>Sommerreifen</label>
+          <select id="reifen-sommer-status">
+            <option value="">–</option>
+            <option value="ok">OK</option>
+            <option value="bald">Bald</option>
+            <option value="tausch">Fällig</option>
+          </select>
+        </div>
+        <div style="flex:1; min-width:180px;">
+          <label>Winterreifen</label>
+          <select id="reifen-winter-status">
+            <option value="">–</option>
+            <option value="ok">OK</option>
+            <option value="bald">Bald</option>
+            <option value="tausch">Fällig</option>
+          </select>
+        </div>
+        <div style="flex:1; min-width:180px;">
+          <label>Allwetterreifen</label>
+          <select id="reifen-allwetter-status">
+            <option value="">–</option>
+            <option value="ok">OK</option>
+            <option value="bald">Bald</option>
+            <option value="tausch">Fällig</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="flex mt-1">
+        <div style="flex:1; min-width:220px;">
+          <label>Reifen gekauft bei</label>
+          <input type="text" id="reifen-haendler" placeholder="z.B. BestDrive">
+        </div>
+        <div style="flex:1; min-width:220px;">
+          <label>Reifen Kaufdatum (letzter Satz)</label>
+          <input type="date" id="reifen-kaufdatum">
+        </div>
+      </div>
+
+      <h3 class="mt-3">Service</h3>
+      <div class="flex">
+        <div style="flex:1; min-width:220px;">
+          <label>Service gemacht am</label>
+          <input type="date" id="service-datum">
+        </div>
+      </div>
+
+      <label class="mt-2">Besondere Vermerke</label>
+      <textarea id="notizen"></textarea>
+
+      <div class="flex mt-2">
+        <button type="submit" class="btn-primary">Speichern</button>
+        <button type="button" class="btn-danger" onclick="deleteVehicle()" id="delete-vehicle-btn" style="display:none;">Fahrzeug löschen</button>
+      </div>
+    </form>
+
+  </section>
+
+  <!-- RECHTS -->
+  <section class="card">
+    <div class="flex-between">
+      <h2 id="detail-title">Kein Fahrzeug ausgewählt</h2>
+      <span id="detail-subtitle" class="small"></span>
+    </div>
+
+    <div id="detail-content" style="display:none;">
+      <h3>Status</h3>
+      <div class="flex">
+        <div style="flex:1; min-width:220px;">
+          <div class="small">Pickerl</div>
+          <div id="pickerl-status-display"></div>
+        </div>
+        <div style="flex:1; min-width:220px;">
+          <div class="small">Leasing</div>
+          <div id="leasing-status-display"></div>
+        </div>
+      </div>
+
+      <h3 class="mt-3">Reifen</h3>
+      <div class="small" id="reifen-display"></div>
+
+      <h3 class="mt-3">Service</h3>
+      <div class="small" id="service-display"></div>
+
+      <h3 class="mt-3">Tanken</h3>
+      <form id="fuel-form" onsubmit="addFuelEntry(event)">
+        <div class="flex">
+          <div style="flex:1; min-width:180px;">
+            <label>Datum</label>
+            <input type="date" id="fuel-datum" required>
+          </div>
+          <div style="flex:1; min-width:180px;">
+            <label>Betrag (€)</label>
+            <input type="number" step="0.01" id="fuel-betrag" required>
+          </div>
+        </div>
+        <div class="flex mt-1">
+          <div style="flex:1; min-width:180px;">
+            <label>Liter (optional)</label>
+            <input type="number" step="0.01" id="fuel-liter">
+          </div>
+          <div style="flex:1; min-width:180px;">
+            <label>KM-Stand (optional)</label>
+            <input type="number" step="1" id="fuel-km">
+          </div>
+        </div>
+        <label class="mt-1">Rechnungsinfo (Nummer / Dateiname)</label>
+        <input type="text" id="fuel-rechnungsinfo" placeholder="z.B. 2025-001 Tankstelle XY.pdf">
+
+        <div class="flex mt-2">
+          <button type="submit" class="btn-primary btn-small">Tankvorgang speichern</button>
+          <span class="small">Kein Diagramm (wie gewünscht).</span>
+        </div>
+      </form>
+
+      <table class="mt-2">
+        <thead>
+          <tr>
+            <th>Datum</th><th>€</th><th>Liter</th><th>KM</th><th>Rechnung</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="fuel-tbody"></tbody>
+      </table>
+
+      <h3 class="mt-3">Rechnungen</h3>
+      <form id="invoice-form" onsubmit="addInvoice(event)">
+        <div class="flex">
+          <div style="flex:1; min-width:180px;">
+            <label>Datum</label>
+            <input type="date" id="inv-date" required>
+          </div>
+          <div style="flex:1; min-width:180px;">
+            <label>Betrag (€)</label>
+            <input type="number" step="0.01" id="inv-amount" required>
+          </div>
+        </div>
+
+        <label class="mt-1">Werkstatt / Händler</label>
+        <input type="text" id="inv-vendor">
+
+        <label class="mt-1">Typ</label>
+        <select id="inv-type">
+          <option>Service</option>
+          <option>Reifen</option>
+          <option>Sonstiges</option>
+        </select>
+
+        <label class="mt-1">Datei (PDF / JPG / PNG)</label>
+        <input type="file" id="inv-file" accept=".pdf,.jpg,.jpeg,.png">
+
+        <div class="flex mt-2">
+          <button class="btn-primary btn-small" type="submit">Rechnung speichern</button>
+          <span class="small">Hinweis: viele große PDFs können den Browser-Speicher füllen.</span>
+        </div>
+      </form>
+
+      <table class="mt-2">
+        <thead>
+          <tr>
+            <th>Datum</th><th>Typ</th><th>€</th><th>Werkstatt</th><th>Datei</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="invoice-tbody"></tbody>
+      </table>
+
+      <h3 class="mt-3">Vermerke</h3>
+      <div class="small" id="notizen-display"></div>
+    </div>
+
+    <div id="no-detail" class="small mt-2">
+      Bitte links ein Fahrzeug öffnen.
+    </div>
+  </section>
 
 </main>
 
 <script>
-const KEY="fuhrpark_data_v1";
-let data={vehicles:[]},selected=null;
+/** =========================
+ *  STABLE STORAGE + MIGRATION
+ *  ========================= */
+const STORAGE_KEY_STABLE = "fuhrpark_data_stable_v1";
+const OLD_KEYS = ["fuhrpark_data_v1", "fuhrpark_data_v2", "fuhrpark_data_v2_backup"]; // safe list
+let data = { vehicles: [] };
+let selectedVehicleId = null;
 
-function save(){localStorage.setItem(KEY,JSON.stringify(data))}
-function load(){const r=localStorage.getItem(KEY);if(r)data=JSON.parse(r)}
-
-function pickerStatus(val){
- if(!val)return{t:"kein Datum",c:"status-gray"};
- const[y,m]=val.split("-").map(Number);
- const end=new Date(y,m,0),now=new Date();
- const diff=(end-now)/86400000;
- const txt=m+"."+y;
- if(diff<0)return{t:"abgelaufen "+txt,c:"status-red"};
- if(diff<=31)return{t:"bald "+txt,c:"status-orange"};
- return{t:"OK bis "+txt,c:"status-green"};
+function safeParseJSON(raw){
+  try { return JSON.parse(raw); } catch { return null; }
 }
 
-function renderVehicles(){
- const tb=document.getElementById("vehicles-tbody");tb.innerHTML="";
- data.vehicles.forEach(v=>{
-  const s=pickerStatus(v.pickerl);
-  tb.innerHTML+=`<tr><td>${v.kz}</td><td>${v.monteur||""}</td>
-  <td><span class="status-pill ${s.c}">${s.t}</span></td>
-  <td><button onclick="selectVehicle('${v.id}')">Öffnen</button></td></tr>`;
- });
+function normalizeMonth(value){
+  // Accept: YYYY-MM (preferred) or YYYY-MM-DD (old date), or empty
+  if(!value) return "";
+  if(typeof value !== "string") return "";
+  if(/^\d{4}-\d{2}$/.test(value)) return value;
+  if(/^\d{4}-\d{2}-\d{2}$/.test(value)) return value.slice(0,7);
+  return value; // leave unknown as-is
 }
 
-function saveVehicle(e){
- e.preventDefault();
- const id=document.getElementById("vid").value||"v"+Date.now();
- let v=data.vehicles.find(x=>x.id===id);
- if(!v){v={id, invoices:[]};data.vehicles.push(v)}
- v.kz=kennzeichen.value;v.monteur=monteur.value;v.pickerl=pickerl.value;
- save();renderVehicles();selectVehicle(id);e.target.reset();
+function normalizeDate(value){
+  if(!value) return "";
+  if(typeof value !== "string") return "";
+  if(/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  // if YYYY-MM, convert to YYYY-MM-01 for display storage (optional)
+  if(/^\d{4}-\d{2}$/.test(value)) return value + "-01";
+  return value;
 }
 
-function selectVehicle(id){
- selected=id;
- const v=data.vehicles.find(x=>x.id===id);
- document.getElementById("detail").style.display="block";
- document.getElementById("detail-title").textContent=v.kz;
- renderInvoices();
+function migrateVehicle(v){
+  // Map old v1 structure to stable structure
+  // v1 fields: kennzeichen, monteur, marke, gewicht, pickerlBis, leasingBis, leasingInfo,
+  //            reifenSommerStatus, reifenWinterStatus, reifenHaendler, reifenKaufdatum,
+  //            notizen, fuelEntries, invoices (maybe), ...
+  const id = v.id || ("veh_" + Date.now() + "_" + Math.floor(Math.random()*10000));
+  const out = {
+    id,
+    kennzeichen: v.kennzeichen ?? v.kz ?? "",
+    monteur: v.monteur ?? "",
+    marke: v.marke ?? "",
+    gewicht: (v.gewicht ?? null),
+    pickerlBis: normalizeMonth(v.pickerlBis ?? v.pickerl ?? ""),
+    leasingBis: normalizeMonth(v.leasingBis ?? v.leasing ?? ""),
+    leasingInfo: v.leasingInfo ?? "",
+    reifenSommerStatus: v.reifenSommerStatus ?? v.reifen?.sommer ?? "",
+    reifenWinterStatus: v.reifenWinterStatus ?? v.reifen?.winter ?? "",
+    reifenAllwetterStatus: v.reifenAllwetterStatus ?? v.reifen?.all ?? "",
+    reifenHaendler: v.reifenHaendler ?? "",
+    reifenKaufdatum: v.reifenKaufdatum ?? "",
+    serviceDatum: v.serviceDatum ?? v.service_datum ?? "",
+    notizen: v.notizen ?? v.notiz ?? "",
+    fuelEntries: Array.isArray(v.fuelEntries) ? v.fuelEntries : [],
+    invoices: Array.isArray(v.invoices) ? v.invoices : []
+  };
+
+  // Normalize fuel entries
+  out.fuelEntries = out.fuelEntries.map(e => ({
+    id: e.id || ("fuel_" + Date.now() + "_" + Math.floor(Math.random()*10000)),
+    datum: e.datum || "",
+    betrag: (e.betrag != null ? Number(e.betrag) : 0),
+    liter: (e.liter != null && e.liter !== "" ? Number(e.liter) : null),
+    km: (e.km != null && e.km !== "" ? Number(e.km) : null),
+    rechnungsinfo: e.rechnungsinfo || ""
+  }));
+
+  // Normalize invoices (file stored as dataURL)
+  out.invoices = out.invoices.map(inv => ({
+    id: inv.id || ("inv_" + Date.now() + "_" + Math.floor(Math.random()*10000)),
+    date: inv.date || "",
+    amount: inv.amount != null ? Number(inv.amount) : 0,
+    vendor: inv.vendor || "",
+    type: inv.type || "Sonstiges",
+    file: inv.file || null // {name, type?, data}
+  }));
+
+  return out;
 }
 
-function addInvoice(e){
- e.preventDefault();
- const v=data.vehicles.find(x=>x.id===selected);
- const f=document.getElementById("inv-file").files[0];
- if(!f)return;
- const r=new FileReader();
- r.onload=()=>{
-  v.invoices.push({id:Date.now(),d:document.getElementById("inv-date").value,a:document.getElementById("inv-amount").value,t:document.getElementById("inv-type").value,f:r.result,n:f.name});
-  save();renderInvoices();e.target.reset();
- };
- r.readAsDataURL(f);
+function mergeVehicleLists(listA, listB){
+  // Merge by kennzeichen if possible, else by id
+  const map = new Map();
+  const add = (v) => {
+    const key = (v.kennzeichen || "").trim().toUpperCase() || v.id;
+    if(!key) return;
+    if(!map.has(key)) map.set(key, v);
+    else {
+      // merge: prefer non-empty fields from newer v
+      const old = map.get(key);
+      const merged = {...old};
+      for(const k in v){
+        if(v[k] != null && v[k] !== "" && !(Array.isArray(v[k]) && v[k].length === 0)){
+          merged[k] = v[k];
+        }
+      }
+      // merge arrays carefully
+      merged.fuelEntries = (old.fuelEntries||[]).concat(v.fuelEntries||[]);
+      merged.invoices = (old.invoices||[]).concat(v.invoices||[]);
+      map.set(key, merged);
+    }
+  };
+  (listA||[]).forEach(add);
+  (listB||[]).forEach(add);
+  return Array.from(map.values());
 }
 
-function renderInvoices(){
- const v=data.vehicles.find(x=>x.id===selected);
- const tb=document.getElementById("invoice-tbody");tb.innerHTML="";
- v.invoices.forEach(i=>{
-  tb.innerHTML+=`<tr><td>${i.d}</td><td>${i.t}</td><td>${i.a}</td><td><a href="${i.f}" target="_blank">${i.n}</a></td>
-  <td><button onclick="delInv(${i.id})">X</button></td></tr>`;
- });
+function loadData(){
+  // 1) stable first
+  const stableRaw = localStorage.getItem(STORAGE_KEY_STABLE);
+  if(stableRaw){
+    const stable = safeParseJSON(stableRaw);
+    if(stable && Array.isArray(stable.vehicles)){
+      data.vehicles = stable.vehicles.map(migrateVehicle);
+      saveData();
+      return;
+    }
+  }
+
+  // 2) try old keys; pick the one with most vehicles, and merge if multiple exist
+  let collected = [];
+  for(const k of OLD_KEYS){
+    const raw = localStorage.getItem(k);
+    const j = raw ? safeParseJSON(raw) : null;
+    if(j && Array.isArray(j.vehicles) && j.vehicles.length){
+      collected.push({key:k, vehicles: j.vehicles});
+    }
+  }
+
+  if(collected.length){
+    // normalize each
+    const normalizedLists = collected.map(x => x.vehicles.map(migrateVehicle));
+    // merge all lists
+    let merged = normalizedLists[0];
+    for(let i=1;i<normalizedLists.length;i++){
+      merged = mergeVehicleLists(merged, normalizedLists[i]);
+    }
+    data.vehicles = merged;
+    saveData();
+  } else {
+    data = { vehicles: [] };
+    saveData();
+  }
 }
 
-function delInv(id){
- const v=data.vehicles.find(x=>x.id===selected);
- v.invoices=v.invoices.filter(i=>i.id!==id);save();renderInvoices();
+function saveData(){
+  localStorage.setItem(STORAGE_KEY_STABLE, JSON.stringify(data));
+  document.getElementById("storageInfo").textContent = "Storage: " + STORAGE_KEY_STABLE;
 }
 
-function exportBackup(){
- const blob=new Blob([JSON.stringify(data)],{type:"application/json"});
- const a=document.createElement("a");
- a.href=URL.createObjectURL(blob);
- a.download="fuhrpark_backup.json";a.click();
+/** =========================
+ *  HELPERS
+ *  ========================= */
+function formatMonthYM(ym){
+  if(!ym) return "";
+  if(/^\d{4}-\d{2}$/.test(ym)){
+    const [y,m] = ym.split("-");
+    return m + "." + y;
+  }
+  if(/^\d{4}-\d{2}-\d{2}$/.test(ym)){
+    const [y,m] = ym.split("-");
+    return m + "." + y;
+  }
+  return ym;
 }
 
-function importBackup(e){
- const f=e.target.files[0];if(!f)return;
- const r=new FileReader();
- r.onload=()=>{const j=JSON.parse(r.result);
-  if(confirm("OK = ERSETZEN, Abbrechen = ANHÄNGEN"))data=j;
-  else data.vehicles=data.vehicles.concat(j.vehicles||[]);
-  save();renderVehicles();
- };
- r.readAsText(f);
+function getMonthEndDate(ym){
+  if(!ym) return null;
+  let year, month;
+  if(/^\d{4}-\d{2}$/.test(ym)){
+    [year, month] = ym.split("-").map(Number);
+  } else if(/^\d{4}-\d{2}-\d{2}$/.test(ym)){
+    const parts = ym.split("-").map(Number);
+    year = parts[0]; month = parts[1];
+  } else {
+    return null;
+  }
+  return new Date(year, month, 0); // last day of that month
 }
 
-function importCSV(e){
- const f=e.target.files[0];if(!f)return;
- const r=new FileReader();
- r.onload=()=>{
-  const l=r.result.split("\n").slice(1);
-  l.forEach(x=>{
-   const c=x.split(";");
-   if(c[1])data.vehicles.push({id:"v"+Date.now()+Math.random(),kz:c[1],monteur:c[2],pickerl:c[4],invoices:[]});
-  });
-  save();renderVehicles();
- };
- r.readAsText(f,"utf-8");
+function getPickerlStatus(ym){
+  if(!ym) return { text:"kein Datum", cls:"gray" };
+  const end = getMonthEndDate(ym);
+  if(!end) return { text:"ungültig ("+ym+")", cls:"gray" };
+  const now = new Date();
+  const diffDays = Math.ceil((end - now) / 86400000);
+  const formatted = formatMonthYM(ym);
+  if(diffDays < 0) return { text:"abgelaufen ("+formatted+")", cls:"red" };
+  if(diffDays <= 31) return { text:"bald fällig ("+formatted+")", cls:"orange" };
+  return { text:"OK bis "+formatted, cls:"green" };
 }
 
-load();renderVehicles();
-</script>
-</body>
-</html>
+function getLeasingStatus(ym){
+  if(!ym) return { text:"kein Datum", cls:"gray" };
+  const end = getMonthEndDate(ym);
+  if(!end) return { text:"ungültig ("+ym+")", cls:"gray" };
+  const now = new Date();
+  // months diff approx:
+  const months = (end.getFullYear()-now.getFullYear())*12 + (end.getMonth()-now.getMonth());
+  const formatted = formatMonthYM(ym);
+  if(end < now) return { text:"abgelaufen ("+formatted+")", cls:"red" };
+  if(months <= 6) return { text:"läuft bald aus ("+formatted+")", cls:"orange" };
+  return { text:"läuft bis "+formatted, cls:"green" };
+}
+
+function statusPillForReifen(val){
+  if(val === "ok") return `<span class="status-pill green">OK</span>`;
+  if(val === "bald") return `<span class="status-pill orange">Bald</span>`;
+  if(val === "tausch") return `<span class="status-pill red">Fällig</span>`;
+  return `<span class="status-pill gray">–</span>`;
+}
+
+/** =**
