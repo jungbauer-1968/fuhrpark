@@ -885,6 +885,80 @@
   reader.readAsText(file, 'UTF-8');
 }
 
-  </script>
+  </script>function addInvoice(e) {
+  e.preventDefault();
+  if (!selectedVehicleId) return;
+
+  const v = data.vehicles.find(v => v.id === selectedVehicleId);
+  if (!v) return;
+
+  const fileInput = document.getElementById('inv-file');
+  let fileData = null;
+
+  if (fileInput.files.length) {
+    const file = fileInput.files[0];
+    fileData = {
+      name: file.name,
+      type: file.type,
+      data: null
+    };
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      fileData.data = reader.result;
+      saveInvoice(v, fileData);
+    };
+    reader.readAsDataURL(file);
+  } else {
+    saveInvoice(v, null);
+  }
+}
+
+function saveInvoice(vehicle, fileData) {
+  vehicle.invoices = vehicle.invoices || [];
+
+  vehicle.invoices.push({
+    id: 'inv_' + Date.now(),
+    date: document.getElementById('inv-date').value,
+    amount: parseFloat(document.getElementById('inv-amount').value),
+    vendor: document.getElementById('inv-vendor').value,
+    type: document.getElementById('inv-type').value,
+    file: fileData
+  });
+
+  saveData();
+  renderInvoices();
+  document.querySelector('#detail-content form').reset();
+}
+
+function renderInvoices() {
+  const tbody = document.getElementById('invoice-tbody');
+  tbody.innerHTML = '';
+  if (!selectedVehicleId) return;
+
+  const v = data.vehicles.find(v => v.id === selectedVehicleId);
+  if (!v || !v.invoices) return;
+
+  v.invoices.forEach(inv => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${inv.date}</td>
+      <td>${inv.type}</td>
+      <td>${inv.amount.toFixed(2)}</td>
+      <td>${inv.vendor || ''}</td>
+      <td>${inv.file ? `<a href="${inv.file.data}" target="_blank">${inv.file.name}</a>` : ''}</td>
+      <td><button class="btn-danger btn-small" onclick="deleteInvoice('${inv.id}')">X</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function deleteInvoice(id) {
+  const v = data.vehicles.find(v => v.id === selectedVehicleId);
+  v.invoices = v.invoices.filter(i => i.id !== id);
+  saveData();
+  renderInvoices();
+}
+
 </body>
 </html>
