@@ -933,6 +933,73 @@ function importCSV(event){
  *  ========================= */
 loadData();
 renderVehicles();
+  <script>
+function getAvailableYears() {
+  const years = new Set();
+  data.vehicles.forEach(v => {
+    (v.invoices || []).forEach(i => {
+      if (i.date) years.add(new Date(i.date).getFullYear());
+    });
+  });
+  if (years.size === 0) years.add(new Date().getFullYear());
+  return Array.from(years).sort();
+}
+
+function renderYearDropdown() {
+  const sel = document.getElementById("cost-year");
+  if (!sel) return;
+  const years = getAvailableYears();
+  sel.innerHTML = "";
+  years.forEach(y => {
+    const o = document.createElement("option");
+    o.value = y;
+    o.textContent = y;
+    sel.appendChild(o);
+  });
+  sel.value = new Date().getFullYear();
+}
+
+function calculateCosts(year, vehicle = null) {
+  let service = 0, reifen = 0, sonst = 0;
+
+  const vehicles = vehicle ? [vehicle] : data.vehicles;
+
+  vehicles.forEach(v => {
+    (v.invoices || []).forEach(i => {
+      if (!i.date) return;
+      if (new Date(i.date).getFullYear() !== Number(year)) return;
+
+      const amount = Number(i.amount || 0);
+      if (i.type === "Service") service += amount;
+      else if (i.type === "Reifen") reifen += amount;
+      else sonst += amount;
+    });
+  });
+
+  return { service, reifen, sonst, gesamt: service + reifen + sonst };
+}
+
+function renderCosts() {
+  const year = document.getElementById("cost-year").value;
+  const box = document.getElementById("cost-summary");
+  if (!box) return;
+
+  const vehicle = selectedVehicleId
+    ? data.vehicles.find(v => v.id === selectedVehicleId)
+    : null;
+
+  const c = calculateCosts(year, vehicle);
+
+  box.innerHTML = `
+    <div>Service: <b>${c.service.toFixed(2)} €</b></div>
+    <div>Reifen: <b>${c.reifen.toFixed(2)} €</b></div>
+    <div>Sonstiges: <b>${c.sonst.toFixed(2)} €</b></div>
+    <hr>
+    <div><b>GESAMT: ${c.gesamt.toFixed(2)} €</b></div>
+  `;
+}
+</script>
+
 </script>
 </body>
 </html>
