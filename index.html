@@ -421,20 +421,33 @@
       return span;
     }
 
-    function getPickerlStatus(pickerlDateStr) {
-      if (!pickerlDateStr) return { text: 'kein Datum', cls: 'status-gray' };
-      const now = new Date();
-      const end = new Date(pickerlDateStr);
-      if (isNaN(end.getTime())) return { text: 'ungültiges Datum', cls: 'status-gray' };
-      const diffDays = Math.round((end - now) / (1000 * 60 * 60 * 24));
-      if (diffDays < 0) {
-        return { text: 'abgelaufen (' + formatDate(pickerlDateStr) + ')', cls: 'status-red' };
-      } else if (diffDays <= 30) {
-        return { text: 'bald fällig (' + formatDate(pickerlDateStr) + ')', cls: 'status-orange' };
-      } else {
-        return { text: 'OK bis ' + formatDate(pickerlDateStr), cls: 'status-green' };
-      }
-    }
+   function getPickerlStatus(pickerlDateStr) {
+  if (!pickerlDateStr) {
+    return { text: 'kein Datum', cls: 'status-gray' };
+  }
+
+  // pickerldatum kommt jetzt als YYYY-MM (month input)
+  const [year, month] = pickerlDateStr.split('-').map(Number);
+
+  // Pickerl gilt bis ENDE dieses Monats
+  const endDate = new Date(year, month, 0); // letzter Tag des Monats
+  const now = new Date();
+
+  const diffDays = Math.ceil((endDate - now) / (1000 * 60 * 60 * 24));
+
+  const formatted = String(month).padStart(2, '0') + '.' + year;
+
+  if (diffDays < 0) {
+    return { text: 'abgelaufen (' + formatted + ')', cls: 'status-red' };
+  }
+
+  if (diffDays <= 31) {
+    return { text: 'läuft bald ab (' + formatted + ')', cls: 'status-orange' };
+  }
+
+  return { text: 'OK bis ' + formatted, cls: 'status-green' };
+}
+
 
     function getLeasingStatus(leasingDateStr) {
       if (!leasingDateStr) return { text: 'kein Leasingdatum', cls: 'status-gray' };
