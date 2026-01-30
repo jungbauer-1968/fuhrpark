@@ -6,7 +6,7 @@
   <title>Fuhrpark Verwaltung – Elektro Jungbauer</title>
   <style>
     body { font-family: Arial, sans-serif; margin:0; background:#f3f4f6; }
-    header { background:#111827; color:#f9fafb; padding:1rem 1.5rem; display:flex; justify-content:space-between; align-items:center; }
+    header { background:#111827; color:#f9fafb; padding:1rem 1.5rem; display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap; }
     header h1 { margin:0; font-size:1.15rem; }
     header small { opacity:.85; }
     main { padding:1rem; display:grid; grid-template-columns: 1.1fr 1.4fr; gap:1rem; }
@@ -15,9 +15,10 @@
     h2 { margin:.1rem 0 .7rem; font-size:1rem; }
     h3 { margin:1rem 0 .4rem; font-size:.95rem; }
     label { display:block; font-size:.8rem; margin-top:.5rem; margin-bottom:.1rem; }
-    input[type="text"], input[type="date"], input[type="month"], input[type="number"], select, textarea {
+    input[type="text"], input[type="date"], input[type="number"], select, textarea {
       width:100%; box-sizing:border-box; padding:.35rem .45rem;
       border:1px solid #d1d5db; border-radius:.35rem; font-size:.85rem;
+      background:#fff;
     }
     textarea { min-height:70px; }
     button { border:none; border-radius:.35rem; padding:.4rem .8rem; cursor:pointer; font-size:.85rem; }
@@ -37,6 +38,7 @@
     .green{ background:#16a34a; } .orange{ background:#ea580c; } .red{ background:#dc2626; } .gray{ background:#6b7280; }
     hr { border:0; border-top:1px solid #e5e7eb; margin: .9rem 0; }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    .note-box { background:#f9fafb; border:1px solid #e5e7eb; border-radius:.5rem; padding:.6rem; }
   </style>
 </head>
 <body>
@@ -74,6 +76,35 @@
       </thead>
       <tbody id="vehicles-tbody"></tbody>
     </table>
+
+    <hr>
+
+    <h3>Gesamt – Termine & Planung</h3>
+    <div class="flex">
+      <div style="flex:1; min-width:200px;">
+        <label>Jahr</label>
+        <select id="agenda-year" onchange="renderAgenda()"></select>
+      </div>
+      <div style="flex:1; min-width:200px;">
+        <label>Zeitraum</label>
+        <select id="agenda-range" onchange="renderAgenda()">
+          <option value="30">Nächste 30 Tage</option>
+          <option value="60">Nächste 60 Tage</option>
+          <option value="90" selected>Nächste 90 Tage</option>
+          <option value="365">Nächste 365 Tage</option>
+          <option value="all">Alle</option>
+        </select>
+      </div>
+    </div>
+    <div class="note-box mt-2">
+      <div class="small"><b>Termine (alle Autos)</b> – automatisch inkl. Pickerl/Leasing + deine eigenen Termine.</div>
+      <table class="mt-2">
+        <thead>
+          <tr><th>Datum</th><th>Auto</th><th>Art</th><th>Notiz</th></tr>
+        </thead>
+        <tbody id="agenda-tbody"></tbody>
+      </table>
+    </div>
 
     <hr>
 
@@ -117,17 +148,17 @@
         </div>
         <div style="flex:1; min-width:180px;">
           <label>Pickerl (Monat/Jahr)</label>
-          <input type="month" id="pickerl-bis">
+          <select id="pickerl-bis"></select>
         </div>
       </div>
 
       <div class="flex mt-1">
         <div style="flex:1; min-width:180px;">
           <label>Leasing läuft bis (Monat/Jahr)</label>
-          <input type="month" id="leasing-bis">
+          <select id="leasing-bis"></select>
         </div>
         <div style="flex:1; min-width:180px;">
-          <label>Leasing Info (Bank, Vertrag…)</label>
+          <label>Leasing Info</label>
           <input type="text" id="leasing-info">
         </div>
       </div>
@@ -169,7 +200,7 @@
           <input type="text" id="reifen-haendler" placeholder="z.B. BestDrive">
         </div>
         <div style="flex:1; min-width:220px;">
-          <label>Reifen Kaufdatum (letzter Satz)</label>
+          <label>Reifen Kaufdatum</label>
           <input type="date" id="reifen-kaufdatum">
         </div>
       </div>
@@ -190,7 +221,6 @@
         <button type="button" class="btn-danger" onclick="deleteVehicle()" id="delete-vehicle-btn" style="display:none;">Fahrzeug löschen</button>
       </div>
     </form>
-
   </section>
 
   <!-- RECHTS -->
@@ -213,20 +243,48 @@
         </div>
       </div>
 
+      <h3 class="mt-3">Kostenübersicht</h3>
+      <div class="flex">
+        <div style="flex:1; min-width:220px;">
+          <label>Jahr auswählen</label>
+          <select id="cost-year" onchange="renderCosts()"></select>
+        </div>
+      </div>
+      <div class="note-box mt-2" id="cost-summary"></div>
+
       <h3 class="mt-3">Reifen</h3>
       <div class="small" id="reifen-display"></div>
 
       <h3 class="mt-3">Service</h3>
       <div class="small" id="service-display"></div>
 
-     
+      <h3 class="mt-3">Termine (dieses Auto)</h3>
+      <form id="appt-form" onsubmit="addAppointment(event)">
+        <div class="flex">
+          <div style="flex:1; min-width:180px;">
+            <label>Datum</label>
+            <input type="date" id="appt-date" required>
+          </div>
+          <div style="flex:1; min-width:180px;">
+            <label>Art</label>
+            <select id="appt-type">
+              <option>Werkstatt</option>
+              <option>Pickerl</option>
+              <option>Service</option>
+              <option>Reifen</option>
+              <option>Sonstiges</option>
+            </select>
+          </div>
+        </div>
+        <label class="mt-1">Notiz</label>
+        <input type="text" id="appt-note" placeholder="z.B. 23.5 Pickerl bei XY, 08:00 Uhr">
+        <button class="btn-primary btn-small mt-2" type="submit">Termin speichern</button>
+      </form>
+
+      <table class="mt-2">
+        <thead><tr><th>Datum</th><th>Art</th><th>Notiz</th><th></th></tr></thead>
+        <tbody id="appt-tbody"></tbody>
       </table>
-<h3 class="mt-3">Kostenübersicht</h3>
-
-<label>Jahr auswählen</label>
-<select id="cost-year" onchange="renderCosts()"></select>
-
-<div id="cost-summary" style="margin-top:8px;font-size:14px"></div>
 
       <h3 class="mt-3">Rechnungen</h3>
       <form id="invoice-form" onsubmit="addInvoice(event)">
@@ -256,7 +314,7 @@
 
         <div class="flex mt-2">
           <button class="btn-primary btn-small" type="submit">Rechnung speichern</button>
-          <span class="small">Hinweis: viele große PDFs können den Browser-Speicher füllen.</span>
+          <span class="small">PDFs/Bilder öffnen über Button „Öffnen“ (kein Chrome-Block).</span>
         </div>
       </form>
 
@@ -270,7 +328,7 @@
       </table>
 
       <h3 class="mt-3">Vermerke</h3>
-     <div class="small" id="notizen-display" style="white-space: pre-line;"></div>
+      <div class="small" id="notizen-display" style="white-space: pre-line;"></div>
     </div>
 
     <div id="no-detail" class="small mt-2">
@@ -284,42 +342,32 @@
 /** =========================
  *  STABLE STORAGE + MIGRATION
  *  ========================= */
-const STORAGE_KEY_STABLE = "fuhrpark_data_stable_v1";
-const OLD_KEYS = ["fuhrpark_data_v1", "fuhrpark_data_v2", "fuhrpark_data_v2_backup"]; // safe list
+const STORAGE_KEY_STABLE = "fuhrpark_data_stable_v1"; // <- WICHTIG: gleich lassen, damit nix verloren geht
+const OLD_KEYS = [
+  "fuhrpark_data_v1",
+  "fuhrpark_data_v2",
+  "fuhrpark_data_v2_backup",
+  "fuhrpark_data_stable" // falls du mal so eine Version hattest
+];
+
 let data = { vehicles: [] };
 let selectedVehicleId = null;
 
-function safeParseJSON(raw){
-  try { return JSON.parse(raw); } catch { return null; }
-}
+function safeParseJSON(raw){ try { return JSON.parse(raw); } catch { return null; } }
 
 function normalizeMonth(value){
-  // Accept: YYYY-MM (preferred) or YYYY-MM-DD (old date), or empty
   if(!value) return "";
   if(typeof value !== "string") return "";
   if(/^\d{4}-\d{2}$/.test(value)) return value;
   if(/^\d{4}-\d{2}-\d{2}$/.test(value)) return value.slice(0,7);
-  return value; // leave unknown as-is
-}
-
-function normalizeDate(value){
-  if(!value) return "";
-  if(typeof value !== "string") return "";
-  if(/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
-  // if YYYY-MM, convert to YYYY-MM-01 for display storage (optional)
-  if(/^\d{4}-\d{2}$/.test(value)) return value + "-01";
   return value;
 }
 
 function migrateVehicle(v){
-  // Map old v1 structure to stable structure
-  // v1 fields: kennzeichen, monteur, marke, gewicht, pickerlBis, leasingBis, leasingInfo,
-  //            reifenSommerStatus, reifenWinterStatus, reifenHaendler, reifenKaufdatum,
-  //            notizen, fuelEntries, invoices (maybe), ...
   const id = v.id || ("veh_" + Date.now() + "_" + Math.floor(Math.random()*10000));
   const out = {
     id,
-    kennzeichen: v.kennzeichen ?? v.kz ?? "",
+    kennzeichen: v.kennzeichen ?? v.kz ?? v.kzzeichen ?? "",
     monteur: v.monteur ?? "",
     marke: v.marke ?? "",
     gewicht: (v.gewicht ?? null),
@@ -333,52 +381,46 @@ function migrateVehicle(v){
     reifenKaufdatum: v.reifenKaufdatum ?? "",
     serviceDatum: v.serviceDatum ?? v.service_datum ?? "",
     notizen: v.notizen ?? v.notiz ?? "",
-    fuelEntries: Array.isArray(v.fuelEntries) ? v.fuelEntries : [],
+    appointments: Array.isArray(v.appointments) ? v.appointments : [],
     invoices: Array.isArray(v.invoices) ? v.invoices : []
   };
 
-  // Normalize fuel entries
-  out.fuelEntries = out.fuelEntries.map(e => ({
-    id: e.id || ("fuel_" + Date.now() + "_" + Math.floor(Math.random()*10000)),
-    datum: e.datum || "",
-    betrag: (e.betrag != null ? Number(e.betrag) : 0),
-    liter: (e.liter != null && e.liter !== "" ? Number(e.liter) : null),
-    km: (e.km != null && e.km !== "" ? Number(e.km) : null),
-    rechnungsinfo: e.rechnungsinfo || ""
+  out.appointments = out.appointments.map(a => ({
+    id: a.id || ("appt_" + Date.now() + "_" + Math.floor(Math.random()*10000)),
+    date: a.date || a.datum || "",
+    type: a.type || a.art || "Werkstatt",
+    note: a.note || a.notiz || ""
   }));
 
-  // Normalize invoices (file stored as dataURL)
   out.invoices = out.invoices.map(inv => ({
     id: inv.id || ("inv_" + Date.now() + "_" + Math.floor(Math.random()*10000)),
     date: inv.date || "",
-    amount: inv.amount != null ? Number(inv.amount) : 0,
+    amount: inv.amount != null ? Number(inv.amount) : Number(inv.a || 0),
     vendor: inv.vendor || "",
     type: inv.type || "Sonstiges",
-    file: inv.file || null // {name, type?, data}
+    file: inv.file || null // {name,type,data}
   }));
 
   return out;
 }
 
 function mergeVehicleLists(listA, listB){
-  // Merge by kennzeichen if possible, else by id
   const map = new Map();
   const add = (v) => {
     const key = (v.kennzeichen || "").trim().toUpperCase() || v.id;
     if(!key) return;
     if(!map.has(key)) map.set(key, v);
     else {
-      // merge: prefer non-empty fields from newer v
       const old = map.get(key);
       const merged = {...old};
       for(const k in v){
-        if(v[k] != null && v[k] !== "" && !(Array.isArray(v[k]) && v[k].length === 0)){
-          merged[k] = v[k];
+        const val = v[k];
+        if(val != null && val !== "" && !(Array.isArray(val) && val.length === 0)){
+          merged[k] = val;
         }
       }
-      // merge arrays carefully
-      merged.fuelEntries = (old.fuelEntries||[]).concat(v.fuelEntries||[]);
       merged.invoices = (old.invoices||[]).concat(v.invoices||[]);
+      merged.appointments = (old.appointments||[]).concat(v.appointments||[]);
       map.set(key, merged);
     }
   };
@@ -388,7 +430,7 @@ function mergeVehicleLists(listA, listB){
 }
 
 function loadData(){
-  // 1) stable first
+  // 1) stable
   const stableRaw = localStorage.getItem(STORAGE_KEY_STABLE);
   if(stableRaw){
     const stable = safeParseJSON(stableRaw);
@@ -399,23 +441,20 @@ function loadData(){
     }
   }
 
-  // 2) try old keys; pick the one with most vehicles, and merge if multiple exist
+  // 2) old keys merge
   let collected = [];
   for(const k of OLD_KEYS){
     const raw = localStorage.getItem(k);
     const j = raw ? safeParseJSON(raw) : null;
     if(j && Array.isArray(j.vehicles) && j.vehicles.length){
-      collected.push({key:k, vehicles: j.vehicles});
+      collected.push(j.vehicles.map(migrateVehicle));
     }
   }
 
   if(collected.length){
-    // normalize each
-    const normalizedLists = collected.map(x => x.vehicles.map(migrateVehicle));
-    // merge all lists
-    let merged = normalizedLists[0];
-    for(let i=1;i<normalizedLists.length;i++){
-      merged = mergeVehicleLists(merged, normalizedLists[i]);
+    let merged = collected[0];
+    for(let i=1;i<collected.length;i++){
+      merged = mergeVehicleLists(merged, collected[i]);
     }
     data.vehicles = merged;
     saveData();
@@ -439,28 +478,15 @@ function formatMonthYM(ym){
     const [y,m] = ym.split("-");
     return m + "." + y;
   }
-  if(/^\d{4}-\d{2}-\d{2}$/.test(ym)){
-    const [y,m] = ym.split("-");
-    return m + "." + y;
-  }
   return ym;
 }
-
 function getMonthEndDate(ym){
   if(!ym) return null;
-  let year, month;
-  if(/^\d{4}-\d{2}$/.test(ym)){
-    [year, month] = ym.split("-").map(Number);
-  } else if(/^\d{4}-\d{2}-\d{2}$/.test(ym)){
-    const parts = ym.split("-").map(Number);
-    year = parts[0]; month = parts[1];
-  } else {
-    return null;
-  }
-  return new Date(year, month, 0); // last day of that month
+  if(!/^\d{4}-\d{2}$/.test(ym)) return null;
+  const [y,m] = ym.split("-").map(Number);
+  return new Date(y, m, 0);
 }
-
-function getPickerlStatus(ym){
+function getStatusForMonth(ym, soonDays){
   if(!ym) return { text:"kein Datum", cls:"gray" };
   const end = getMonthEndDate(ym);
   if(!end) return { text:"ungültig ("+ym+")", cls:"gray" };
@@ -468,32 +494,43 @@ function getPickerlStatus(ym){
   const diffDays = Math.ceil((end - now) / 86400000);
   const formatted = formatMonthYM(ym);
   if(diffDays < 0) return { text:"abgelaufen ("+formatted+")", cls:"red" };
-  if(diffDays <= 31) return { text:"bald fällig ("+formatted+")", cls:"orange" };
+  if(diffDays <= soonDays) return { text:"bald fällig ("+formatted+")", cls:"orange" };
   return { text:"OK bis "+formatted, cls:"green" };
 }
-
-function getLeasingStatus(ym){
-  if(!ym) return { text:"kein Datum", cls:"gray" };
-  const end = getMonthEndDate(ym);
-  if(!end) return { text:"ungültig ("+ym+")", cls:"gray" };
-  const now = new Date();
-  // months diff approx:
-  const months = (end.getFullYear()-now.getFullYear())*12 + (end.getMonth()-now.getMonth());
-  const formatted = formatMonthYM(ym);
-  if(end < now) return { text:"abgelaufen ("+formatted+")", cls:"red" };
-  if(months <= 6) return { text:"läuft bald aus ("+formatted+")", cls:"orange" };
-  return { text:"läuft bis "+formatted, cls:"green" };
-}
-
 function statusPillForReifen(val){
   if(val === "ok") return `<span class="status-pill green">OK</span>`;
   if(val === "bald") return `<span class="status-pill orange">Bald</span>`;
   if(val === "tausch") return `<span class="status-pill red">Fällig</span>`;
   return `<span class="status-pill gray">–</span>`;
 }
+function money(n){
+  const x = Number(n || 0);
+  return x.toFixed(2) + " €";
+}
 
 /** =========================
- *  RENDER
+ *  MONTH DROPDOWNS
+ *  ========================= */
+function fillMonthDropdown(selectId, monthsAhead = 60){
+  const sel = document.getElementById(selectId);
+  if(!sel) return;
+  const now = new Date();
+  sel.innerHTML = `<option value="">–</option>`;
+  for(let i=0;i<=monthsAhead;i++){
+    const d = new Date(now.getFullYear(), now.getMonth()+i, 1);
+    const y = d.getFullYear();
+    const m = String(d.getMonth()+1).padStart(2,"0");
+    const val = `${y}-${m}`;
+    const label = `${m}.${y}`;
+    const opt = document.createElement("option");
+    opt.value = val;
+    opt.textContent = label;
+    sel.appendChild(opt);
+  }
+}
+
+/** =========================
+ *  VEHICLES RENDER + FORM
  *  ========================= */
 function renderVehicles(){
   const q = (document.getElementById("search").value || "").trim().toLowerCase();
@@ -506,8 +543,8 @@ function renderVehicles(){
     const hay = ((v.kennzeichen||"")+" "+(v.monteur||"")+" "+(v.marke||"")).toLowerCase();
     if(q && !hay.includes(q)) return;
 
-    const p = getPickerlStatus(v.pickerlBis);
-    const l = getLeasingStatus(v.leasingBis);
+    const p = getStatusForMonth(v.pickerlBis, 31);
+    const l = getStatusForMonth(v.leasingBis, 183); // ~6 Monate
 
     const tr = document.createElement("tr");
     tr.innerHTML = `
@@ -519,6 +556,8 @@ function renderVehicles(){
     `;
     tbody.appendChild(tr);
   });
+
+  renderAgenda();
 }
 
 function resetVehicleForm(){
@@ -568,13 +607,11 @@ function selectVehicle(id){
   document.getElementById("detail-title").textContent = v.kennzeichen || "(ohne Kennzeichen)";
   document.getElementById("detail-subtitle").textContent = (v.monteur || "") + (v.marke ? " – " + v.marke : "");
 
-  const detailContent = document.getElementById("detail-content");
-  const noDetail = document.getElementById("no-detail");
-  detailContent.style.display = "block";
-  noDetail.style.display = "none";
+  document.getElementById("detail-content").style.display = "block";
+  document.getElementById("no-detail").style.display = "none";
 
-  const p = getPickerlStatus(v.pickerlBis);
-  const l = getLeasingStatus(v.leasingBis);
+  const p = getStatusForMonth(v.pickerlBis, 31);
+  const l = getStatusForMonth(v.leasingBis, 183);
 
   document.getElementById("pickerl-status-display").innerHTML = `<span class="status-pill ${p.cls}">${p.text}</span>`;
   document.getElementById("leasing-status-display").innerHTML = `<span class="status-pill ${l.cls}">${l.text}${v.leasingInfo ? " | " + v.leasingInfo : ""}</span>`;
@@ -594,8 +631,11 @@ function selectVehicle(id){
 
   document.getElementById("notizen-display").textContent = v.notizen || "–";
 
-  renderFuelTable();
+  ensureYearDropdowns();
+  renderCosts();
+  renderAppointments();
   renderInvoices();
+  renderAgenda();
 }
 
 function saveVehicle(event){
@@ -622,13 +662,12 @@ function saveVehicle(event){
   };
 
   if(existing){
-    // keep arrays
-    payload.fuelEntries = existing.fuelEntries || [];
     payload.invoices = existing.invoices || [];
+    payload.appointments = existing.appointments || [];
     Object.assign(existing, payload);
   } else {
-    payload.fuelEntries = [];
     payload.invoices = [];
+    payload.appointments = [];
     data.vehicles.push(payload);
   }
 
@@ -654,68 +693,206 @@ function deleteVehicle(){
   document.getElementById("no-detail").style.display = "block";
   document.getElementById("detail-title").textContent = "Kein Fahrzeug ausgewählt";
   document.getElementById("detail-subtitle").textContent = "";
+  renderAgenda();
 }
 
 /** =========================
- *  TANKEN (ohne Diagramm)
+ *  COSTS (pro Auto + Gesamt)
  *  ========================= */
-function addFuelEntry(event){
+function getAvailableYears(){
+  const years = new Set();
+  data.vehicles.forEach(v=>{
+    (v.invoices||[]).forEach(i=>{
+      if(i.date) years.add(new Date(i.date).getFullYear());
+    });
+  });
+  if(years.size===0) years.add(new Date().getFullYear());
+  return Array.from(years).sort();
+}
+
+function ensureYearDropdowns(){
+  const years = getAvailableYears();
+  const setOptions = (selId) => {
+    const sel = document.getElementById(selId);
+    if(!sel) return;
+    const current = sel.value;
+    sel.innerHTML = "";
+    years.forEach(y=>{
+      const opt=document.createElement("option");
+      opt.value=String(y);
+      opt.textContent=String(y);
+      sel.appendChild(opt);
+    });
+    const nowY = String(new Date().getFullYear());
+    sel.value = years.includes(Number(current)) ? current : (years.includes(Number(nowY)) ? nowY : String(years[0]));
+  };
+  setOptions("cost-year");
+  setOptions("agenda-year");
+}
+
+function calculateCosts(year, vehicleOrNull){
+  let service=0, reifen=0, sonst=0;
+  const vehicles = vehicleOrNull ? [vehicleOrNull] : data.vehicles;
+
+  vehicles.forEach(v=>{
+    (v.invoices||[]).forEach(i=>{
+      if(!i.date) return;
+      if(new Date(i.date).getFullYear() !== Number(year)) return;
+      const amount = Number(i.amount||0);
+      if(i.type==="Service") service += amount;
+      else if(i.type==="Reifen") reifen += amount;
+      else sonst += amount;
+    });
+  });
+  return {service, reifen, sonst, gesamt: service+reifen+sonst};
+}
+
+function renderCosts(){
+  const yearSel = document.getElementById("cost-year");
+  const box = document.getElementById("cost-summary");
+  if(!yearSel || !box) return;
+
+  const year = yearSel.value || String(new Date().getFullYear());
+  const v = selectedVehicleId ? data.vehicles.find(x=>x.id===selectedVehicleId) : null;
+
+  const perVehicle = calculateCosts(year, v);
+  const overall = calculateCosts(year, null);
+
+  box.innerHTML = `
+    <div class="small"><b>Dieses Auto (${v ? (v.kennzeichen||"") : "-"})</b></div>
+    <div>Service: <b>${money(perVehicle.service)}</b></div>
+    <div>Reifen: <b>${money(perVehicle.reifen)}</b></div>
+    <div>Sonstiges: <b>${money(perVehicle.sonst)}</b></div>
+    <hr>
+    <div><b>GESAMT Auto: ${money(perVehicle.gesamt)}</b></div>
+    <hr>
+    <div class="small"><b>Gesamt Fuhrpark (${year})</b></div>
+    <div>Service: <b>${money(overall.service)}</b></div>
+    <div>Reifen: <b>${money(overall.reifen)}</b></div>
+    <div>Sonstiges: <b>${money(overall.sonst)}</b></div>
+    <div><b>GESAMT Fuhrpark: ${money(overall.gesamt)}</b></div>
+  `;
+}
+
+/** =========================
+ *  APPOINTMENTS (pro Auto)
+ *  ========================= */
+function addAppointment(event){
   event.preventDefault();
   if(!selectedVehicleId) return;
-
-  const v = data.vehicles.find(x => x.id === selectedVehicleId);
+  const v = data.vehicles.find(x=>x.id===selectedVehicleId);
   if(!v) return;
 
-  const entry = {
-    id: "fuel_" + Date.now() + "_" + Math.floor(Math.random()*10000),
-    datum: document.getElementById("fuel-datum").value,
-    betrag: Number(document.getElementById("fuel-betrag").value || 0),
-    liter: document.getElementById("fuel-liter").value ? Number(document.getElementById("fuel-liter").value) : null,
-    km: document.getElementById("fuel-km").value ? Number(document.getElementById("fuel-km").value) : null,
-    rechnungsinfo: document.getElementById("fuel-rechnungsinfo").value.trim()
-  };
-
-  v.fuelEntries = v.fuelEntries || [];
-  v.fuelEntries.push(entry);
+  v.appointments = v.appointments || [];
+  v.appointments.push({
+    id: "appt_" + Date.now() + "_" + Math.floor(Math.random()*10000),
+    date: document.getElementById("appt-date").value,
+    type: document.getElementById("appt-type").value,
+    note: document.getElementById("appt-note").value.trim()
+  });
 
   saveData();
-  document.getElementById("fuel-form").reset();
-  renderFuelTable();
+  document.getElementById("appt-form").reset();
+  renderAppointments();
+  renderAgenda();
 }
 
-function deleteFuelEntry(id){
-  const v = data.vehicles.find(x => x.id === selectedVehicleId);
+function deleteAppointment(id){
+  const v = data.vehicles.find(x=>x.id===selectedVehicleId);
   if(!v) return;
-  v.fuelEntries = (v.fuelEntries || []).filter(e => e.id !== id);
+  v.appointments = (v.appointments||[]).filter(a=>a.id!==id);
   saveData();
-  renderFuelTable();
+  renderAppointments();
+  renderAgenda();
 }
 
-function renderFuelTable(){
-  const tbody = document.getElementById("fuel-tbody");
+function renderAppointments(){
+  const tbody = document.getElementById("appt-tbody");
   tbody.innerHTML = "";
   if(!selectedVehicleId) return;
-
-  const v = data.vehicles.find(x => x.id === selectedVehicleId);
+  const v = data.vehicles.find(x=>x.id===selectedVehicleId);
   if(!v) return;
 
-  const entries = (v.fuelEntries || []).slice().sort((a,b)=> new Date(a.datum) - new Date(b.datum));
-  entries.forEach(e => {
-    const tr = document.createElement("tr");
+  const list = (v.appointments||[]).slice().sort((a,b)=> (a.date||"").localeCompare(b.date||""));
+  list.forEach(a=>{
+    const tr=document.createElement("tr");
     tr.innerHTML = `
-      <td>${e.datum || ""}</td>
-      <td>${(e.betrag != null ? Number(e.betrag).toFixed(2) : "")}</td>
-      <td>${(e.liter != null ? Number(e.liter).toFixed(2) : "")}</td>
-      <td>${(e.km != null ? e.km : "")}</td>
-      <td>${e.rechnungsinfo || ""}</td>
-      <td><button class="btn-danger btn-small" onclick="deleteFuelEntry('${e.id}')">X</button></td>
+      <td>${a.date||""}</td>
+      <td>${a.type||""}</td>
+      <td>${a.note||""}</td>
+      <td><button class="btn-danger btn-small" onclick="deleteAppointment('${a.id}')">X</button></td>
     `;
     tbody.appendChild(tr);
   });
 }
 
 /** =========================
- *  RECHNUNGEN (Upload lokal)
+ *  AGENDA (alle Autos)
+ *  ========================= */
+function buildAgendaItems(){
+  const items = [];
+  data.vehicles.forEach(v=>{
+    const kz = v.kennzeichen || "";
+
+    // Auto: Pickerl/Leasing als automatische Termine
+    if(v.pickerlBis){
+      const d = getMonthEndDate(v.pickerlBis);
+      if(d){
+        const iso = d.toISOString().slice(0,10);
+        items.push({date: iso, car: kz, type: "Pickerl", note: "Automatisch: Pickerl fällig ("+formatMonthYM(v.pickerlBis)+")"});
+      }
+    }
+    if(v.leasingBis){
+      const d = getMonthEndDate(v.leasingBis);
+      if(d){
+        const iso = d.toISOString().slice(0,10);
+        items.push({date: iso, car: kz, type: "Leasing", note: "Automatisch: Leasing endet ("+formatMonthYM(v.leasingBis)+")"});
+      }
+    }
+
+    // Eigene Termine
+    (v.appointments||[]).forEach(a=>{
+      items.push({date: a.date, car: kz, type: a.type, note: a.note || ""});
+    });
+  });
+  return items.filter(x=>x.date).sort((a,b)=> (a.date||"").localeCompare(b.date||""));
+}
+
+function renderAgenda(){
+  const tbody = document.getElementById("agenda-tbody");
+  if(!tbody) return;
+  tbody.innerHTML = "";
+
+  const year = (document.getElementById("agenda-year")?.value) || String(new Date().getFullYear());
+  const range = (document.getElementById("agenda-range")?.value) || "90";
+
+  const now = new Date();
+  const maxDate = (range === "all") ? null : new Date(now.getTime() + Number(range)*86400000);
+
+  const items = buildAgendaItems().filter(it=>{
+    const d = new Date(it.date);
+    if(String(d.getFullYear()) !== String(year)) return false;
+    if(maxDate && d > maxDate) return false;
+    // allow past dates? keep, but show as they come (you can change if you want)
+    return true;
+  });
+
+  if(items.length === 0){
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td colspan="4" class="small">Keine Termine im gewählten Zeitraum.</td>`;
+    tbody.appendChild(tr);
+    return;
+  }
+
+  items.forEach(it=>{
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${it.date}</td><td><b>${it.car}</b></td><td>${it.type}</td><td>${it.note||""}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+/** =========================
+ *  INVOICES (Upload + Open Fix)
  *  ========================= */
 function addInvoice(event){
   event.preventDefault();
@@ -726,8 +903,12 @@ function addInvoice(event){
 
   const fileInput = document.getElementById("inv-file");
   const file = fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
+  if(!file){
+    alert("Bitte Datei auswählen (PDF/JPG/PNG).");
+    return;
+  }
 
-  const invoiceBase = {
+  const invoice = {
     id: "inv_" + Date.now() + "_" + Math.floor(Math.random()*10000),
     date: document.getElementById("inv-date").value,
     amount: Number(document.getElementById("inv-amount").value || 0),
@@ -736,18 +917,15 @@ function addInvoice(event){
     file: null
   };
 
-  if(!file){
-    alert("Bitte Datei auswählen (PDF/JPG/PNG).");
-    return;
-  }
-
   const reader = new FileReader();
   reader.onload = () => {
-    invoiceBase.file = { name: file.name, type: file.type, data: reader.result };
+    invoice.file = { name: file.name, type: file.type, data: reader.result };
     v.invoices = v.invoices || [];
-    v.invoices.push(invoiceBase);
+    v.invoices.push(invoice);
 
     saveData();
+    ensureYearDropdowns();
+    renderCosts();
     renderInvoices();
     document.getElementById("invoice-form").reset();
   };
@@ -759,7 +937,34 @@ function deleteInvoice(id){
   if(!v) return;
   v.invoices = (v.invoices || []).filter(i => i.id !== id);
   saveData();
+  ensureYearDropdowns();
+  renderCosts();
   renderInvoices();
+}
+
+function openInvoiceFile(invoiceId){
+  const v = data.vehicles.find(x => x.id === selectedVehicleId);
+  if(!v) return;
+
+  const inv = (v.invoices || []).find(i => i.id === invoiceId);
+  if(!inv || !inv.file || !inv.file.data) return;
+
+  // DataURL -> Blob öffnen (Chrome about:blank#blocked umgehen)
+  const parts = inv.file.data.split(',');
+  const meta = parts[0] || "";
+  const b64  = parts[1] || "";
+
+  const mimeMatch = meta.match(/data:(.*?);base64/);
+  const mime = mimeMatch ? mimeMatch[1] : "application/octet-stream";
+
+  const byteChars = atob(b64);
+  const byteNumbers = new Array(byteChars.length);
+  for (let i = 0; i < byteChars.length; i++) byteNumbers[i] = byteChars.charCodeAt(i);
+  const blob = new Blob([new Uint8Array(byteNumbers)], { type: mime });
+
+  const url = URL.createObjectURL(blob);
+  window.open(url, "_blank");
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
 function renderInvoices(){
@@ -772,17 +977,17 @@ function renderInvoices(){
 
   const list = (v.invoices || []).slice().sort((a,b)=> (a.date||"").localeCompare(b.date||""));
   list.forEach(inv => {
-    const fileLink = inv.file && inv.file.data
-      ? `<a href="${inv.file.data}" target="_blank">${inv.file.name || "Datei"}</a>`
+    const openBtn = inv.file && inv.file.data
+      ? `<button class="btn-secondary btn-small" onclick="openInvoiceFile('${inv.id}')">Öffnen</button>`
       : "";
 
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${inv.date || ""}</td>
       <td>${inv.type || ""}</td>
-      <td>${(inv.amount != null ? Number(inv.amount).toFixed(2) : "")}</td>
+      <td>${money(inv.amount)}</td>
       <td>${inv.vendor || ""}</td>
-      <td>${fileLink}</td>
+      <td>${openBtn}</td>
       <td><button class="btn-danger btn-small" onclick="deleteInvoice('${inv.id}')">X</button></td>
     `;
     tbody.appendChild(tr);
@@ -793,7 +998,6 @@ function renderInvoices(){
  *  BACKUP/RESTORE (CSV wrapper)
  *  ========================= */
 function exportBackup(){
-  // CSV wrapper: 1st line header, 2nd line base64(json)
   const json = JSON.stringify(data);
   const b64 = btoa(unescape(encodeURIComponent(json)));
   const csv = "DATA\n" + b64 + "\n";
@@ -837,6 +1041,7 @@ function importBackup(event){
     }
 
     saveData();
+    ensureYearDropdowns();
     renderVehicles();
     alert("Backup importiert ✅");
   };
@@ -876,12 +1081,11 @@ function importCSV(event){
       return -1;
     };
 
-    // Try to map by header names (best)
     const iKenn = idx(["kenn", "kz", "kennzeichen", "nummernschild"]);
     const iMon  = idx(["monteur", "fahrer"]);
     const iMark = idx(["marke", "modell", "fahrzeug"]);
-    const iGew  = idx(["gewicht", "t "]);
-    const iPick = idx(["pickerl", "pickel", "tüv", "§57"]);
+    const iGew  = idx(["gewicht"]);
+    const iPick = idx(["pickerl", "tüv", "57a", "§57"]);
     const iLeas = idx(["leasing"]);
     const iLeasInfo = idx(["leasing info", "leasinginfo", "bank", "vertrag"]);
     const iNote = idx(["notiz", "vermerk", "bemerk", "besonder"]);
@@ -905,14 +1109,14 @@ function importCSV(event){
         pickerlBis: iPick >= 0 ? normalizeMonth((cols[iPick] || "").trim()) : "",
         leasingBis: iLeas >= 0 ? normalizeMonth((cols[iLeas] || "").trim()) : "",
         leasingInfo: iLeasInfo >= 0 ? (cols[iLeasInfo] || "").trim() : "",
-        serviceDatum: iServ >= 0 ? normalizeDate((cols[iServ] || "").trim()).slice(0,10) : "",
+        serviceDatum: iServ >= 0 ? (cols[iServ] || "").trim() : "",
         notizen: iNote >= 0 ? (cols[iNote] || "").trim() : "",
         reifenSommerStatus: "",
         reifenWinterStatus: "",
         reifenAllwetterStatus: "",
         reifenHaendler: "",
         reifenKaufdatum: "",
-        fuelEntries: [],
+        appointments: [],
         invoices: []
       };
 
@@ -921,6 +1125,7 @@ function importCSV(event){
     }
 
     saveData();
+    ensureYearDropdowns();
     renderVehicles();
     alert("CSV-Import fertig ✅ (" + added + " Fahrzeuge)");
   };
@@ -932,77 +1137,11 @@ function importCSV(event){
  *  START
  *  ========================= */
 loadData();
+fillMonthDropdown("pickerl-bis", 72);
+fillMonthDropdown("leasing-bis", 72);
+ensureYearDropdowns();
 renderVehicles();
-  renderYearDropdown();
-renderCosts();
-
-
-function getAvailableYears() {
-  const years = new Set();
-  data.vehicles.forEach(v => {
-    (v.invoices || []).forEach(i => {
-      if (i.date) years.add(new Date(i.date).getFullYear());
-    });
-  });
-  if (years.size === 0) years.add(new Date().getFullYear());
-  return Array.from(years).sort();
-}
-
-function renderYearDropdown() {
-  const sel = document.getElementById("cost-year");
-  if (!sel) return;
-  const years = getAvailableYears();
-  sel.innerHTML = "";
-  years.forEach(y => {
-    const o = document.createElement("option");
-    o.value = y;
-    o.textContent = y;
-    sel.appendChild(o);
-  });
-  sel.value = new Date().getFullYear();
-}
-
-function calculateCosts(year, vehicle = null) {
-  let service = 0, reifen = 0, sonst = 0;
-
-  const vehicles = vehicle ? [vehicle] : data.vehicles;
-
-  vehicles.forEach(v => {
-    (v.invoices || []).forEach(i => {
-      if (!i.date) return;
-      if (new Date(i.date).getFullYear() !== Number(year)) return;
-
-      const amount = Number(i.amount || 0);
-      if (i.type === "Service") service += amount;
-      else if (i.type === "Reifen") reifen += amount;
-      else sonst += amount;
-    });
-  });
-
-  return { service, reifen, sonst, gesamt: service + reifen + sonst };
-}
-
-function renderCosts() {
-  const year = document.getElementById("cost-year").value;
-  const box = document.getElementById("cost-summary");
-  if (!box) return;
-
-  const vehicle = selectedVehicleId
-    ? data.vehicles.find(v => v.id === selectedVehicleId)
-    : null;
-
-  const c = calculateCosts(year, vehicle);
-
-  box.innerHTML = `
-    <div>Service: <b>${c.service.toFixed(2)} €</b></div>
-    <div>Reifen: <b>${c.reifen.toFixed(2)} €</b></div>
-    <div>Sonstiges: <b>${c.sonst.toFixed(2)} €</b></div>
-    <hr>
-    <div><b>GESAMT: ${c.gesamt.toFixed(2)} €</b></div>
-  `;
-}
-
-
+renderAgenda();
 </script>
 </body>
 </html>
