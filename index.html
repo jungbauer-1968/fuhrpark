@@ -95,9 +95,18 @@
           <option value="all">Alle</option>
         </select>
       </div>
+      <div style="flex:1; min-width:220px;">
+        <label>Anzeige</label>
+        <select id="agenda-mode" onchange="renderAgenda()">
+          <option value="manual" selected>Nur Termine (manuell)</option>
+          <option value="due">Nur Fälligkeiten (Pickerl/Leasing)</option>
+          <option value="all">Beides</option>
+        </select>
+      </div>
     </div>
+
     <div class="note-box mt-2">
-      <div class="small"><b>Termine (alle Autos)</b> – automatisch inkl. Pickerl/Leasing + deine eigenen Termine.</div>
+      <div class="small"><b>Termine (alle Autos)</b> – sortiert nach Datum.</div>
       <table class="mt-2">
         <thead>
           <tr><th>Datum</th><th>Auto</th><th>Art</th><th>Notiz</th></tr>
@@ -314,7 +323,7 @@
 
         <div class="flex mt-2">
           <button class="btn-primary btn-small" type="submit">Rechnung speichern</button>
-          <span class="small">PDFs/Bilder öffnen über Button „Öffnen“ (kein Chrome-Block).</span>
+          <span class="small">Öffnen über Button „Öffnen“ (kein Chrome-Block).</span>
         </div>
       </form>
 
@@ -340,21 +349,20 @@
 
 <script>
 /** =========================
- *  STABLE STORAGE + MIGRATION
+ *  STORAGE + MIGRATION (KEIN DATENVERLUST)
  *  ========================= */
-const STORAGE_KEY_STABLE = "fuhrpark_data_stable_v1"; // <- WICHTIG: gleich lassen, damit nix verloren geht
+const STORAGE_KEY_STABLE = "fuhrpark_data_stable_v1";
 const OLD_KEYS = [
   "fuhrpark_data_v1",
   "fuhrpark_data_v2",
   "fuhrpark_data_v2_backup",
-  "fuhrpark_data_stable" // falls du mal so eine Version hattest
+  "fuhrpark_data_stable"
 ];
 
 let data = { vehicles: [] };
 let selectedVehicleId = null;
 
 function safeParseJSON(raw){ try { return JSON.parse(raw); } catch { return null; } }
-
 function normalizeMonth(value){
   if(!value) return "";
   if(typeof value !== "string") return "";
@@ -367,7 +375,7 @@ function migrateVehicle(v){
   const id = v.id || ("veh_" + Date.now() + "_" + Math.floor(Math.random()*10000));
   const out = {
     id,
-    kennzeichen: v.kennzeichen ?? v.kz ?? v.kzzeichen ?? "",
+    kennzeichen: v.kennzeichen ?? v.kz ?? "",
     monteur: v.monteur ?? "",
     marke: v.marke ?? "",
     gewicht: (v.gewicht ?? null),
@@ -395,10 +403,10 @@ function migrateVehicle(v){
   out.invoices = out.invoices.map(inv => ({
     id: inv.id || ("inv_" + Date.now() + "_" + Math.floor(Math.random()*10000)),
     date: inv.date || "",
-    amount: inv.amount != null ? Number(inv.amount) : Number(inv.a || 0),
+    amount: inv.amount != null ? Number(inv.amount) : 0,
     vendor: inv.vendor || "",
     type: inv.type || "Sonstiges",
-    file: inv.file || null // {name,type,data}
+    file: inv.file || null // {name,type,data} oder evtl. alt: {data}
   }));
 
   return out;
@@ -430,7 +438,6 @@ function mergeVehicleLists(listA, listB){
 }
 
 function loadData(){
-  // 1) stable
   const stableRaw = localStorage.getItem(STORAGE_KEY_STABLE);
   if(stableRaw){
     const stable = safeParseJSON(stableRaw);
@@ -441,7 +448,6 @@ function loadData(){
     }
   }
 
-  // 2) old keys merge
   let collected = [];
   for(const k of OLD_KEYS){
     const raw = localStorage.getItem(k);
@@ -480,12 +486,14 @@ function formatMonthYM(ym){
   }
   return ym;
 }
+
 function getMonthEndDate(ym){
   if(!ym) return null;
   if(!/^\d{4}-\d{2}$/.test(ym)) return null;
   const [y,m] = ym.split("-").map(Number);
   return new Date(y, m, 0);
 }
+
 function getStatusForMonth(ym, soonDays){
   if(!ym) return { text:"kein Datum", cls:"gray" };
   const end = getMonthEndDate(ym);
@@ -497,12 +505,14 @@ function getStatusForMonth(ym, soonDays){
   if(diffDays <= soonDays) return { text:"bald fällig ("+formatted+")", cls:"orange" };
   return { text:"OK bis "+formatted, cls:"green" };
 }
+
 function statusPillForReifen(val){
   if(val === "ok") return `<span class="status-pill green">OK</span>`;
   if(val === "bald") return `<span class="status-pill orange">Bald</span>`;
   if(val === "tausch") return `<span class="status-pill red">Fällig</span>`;
   return `<span class="status-pill gray">–</span>`;
 }
+
 function money(n){
   const x = Number(n || 0);
   return x.toFixed(2) + " €";
@@ -511,7 +521,7 @@ function money(n){
 /** =========================
  *  MONTH DROPDOWNS
  *  ========================= */
-function fillMonthDropdown(selectId, monthsAhead = 60){
+function fillMonthDropdown(selectId, monthsAhead = 72){
   const sel = document.getElementById(selectId);
   if(!sel) return;
   const now = new Date();
@@ -530,7 +540,53 @@ function fillMonthDropdown(selectId, monthsAhead = 60){
 }
 
 /** =========================
- *  VEHICLES RENDER + FORM
+ *  YEAR DROPDOWNS
+ *  ========================= */
+function getAvailableYears(){
+  const years = new Set();
+  const nowY = new Date().getFullYear();
+  years.add(nowY);
+  data.vehicles.forEach(v=>{
+    (v.invoices||[]).forEach(i=>{
+      if(i.date) years.add(new Date(i.date).getFullYear());
+    });
+    (v.appointments||[]).forEach(a=>{
+      if(a.date) years.add(new Date(a.date).getFullYear());
+    });
+    if(v.pickerlBis){
+      const d = getMonthEndDate(v.pickerlBis);
+      if(d) years.add(d.getFullYear());
+    }
+    if(v.leasingBis){
+      const d = getMonthEndDate(v.leasingBis);
+      if(d) years.add(d.getFullYear());
+    }
+  });
+  return Array.from(years).sort();
+}
+
+function ensureYearDropdowns(){
+  const years = getAvailableYears();
+  const setOptions = (selId) => {
+    const sel = document.getElementById(selId);
+    if(!sel) return;
+    const current = sel.value;
+    sel.innerHTML = "";
+    years.forEach(y=>{
+      const opt=document.createElement("option");
+      opt.value=String(y);
+      opt.textContent=String(y);
+      sel.appendChild(opt);
+    });
+    const nowY = String(new Date().getFullYear());
+    sel.value = years.includes(Number(current)) ? current : (years.includes(Number(nowY)) ? nowY : String(years[0]));
+  };
+  setOptions("cost-year");
+  setOptions("agenda-year");
+}
+
+/** =========================
+ *  VEHICLES
  *  ========================= */
 function renderVehicles(){
   const q = (document.getElementById("search").value || "").trim().toLowerCase();
@@ -544,19 +600,18 @@ function renderVehicles(){
     if(q && !hay.includes(q)) return;
 
     const p = getStatusForMonth(v.pickerlBis, 31);
-    const l = getStatusForMonth(v.leasingBis, 183); // ~6 Monate
-
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${v.kennzeichen||""}</td>
       <td>${v.monteur||""}</td>
       <td><span class="badge">${p.text}</span></td>
-      <td><span class="badge">${l.text}</span></td>
+      <td><span class="badge">${v.leasingBis ? ("bis " + formatMonthYM(v.leasingBis)) : "–"}</span></td>
       <td><button class="btn-secondary btn-small" onclick="selectVehicle('${v.id}')">Öffnen</button></td>
     `;
     tbody.appendChild(tr);
   });
 
+  ensureYearDropdowns();
   renderAgenda();
 }
 
@@ -584,7 +639,6 @@ function selectVehicle(id){
   const v = data.vehicles.find(x => x.id === id);
   if(!v) return;
 
-  // Fill form
   document.getElementById("vehicle-id").value = v.id;
   document.getElementById("kennzeichen").value = v.kennzeichen || "";
   document.getElementById("monteur").value = v.monteur || "";
@@ -603,7 +657,6 @@ function selectVehicle(id){
 
   document.getElementById("delete-vehicle-btn").style.display = "inline-block";
 
-  // Detail view
   document.getElementById("detail-title").textContent = v.kennzeichen || "(ohne Kennzeichen)";
   document.getElementById("detail-subtitle").textContent = (v.monteur || "") + (v.marke ? " – " + v.marke : "");
 
@@ -699,37 +752,6 @@ function deleteVehicle(){
 /** =========================
  *  COSTS (pro Auto + Gesamt)
  *  ========================= */
-function getAvailableYears(){
-  const years = new Set();
-  data.vehicles.forEach(v=>{
-    (v.invoices||[]).forEach(i=>{
-      if(i.date) years.add(new Date(i.date).getFullYear());
-    });
-  });
-  if(years.size===0) years.add(new Date().getFullYear());
-  return Array.from(years).sort();
-}
-
-function ensureYearDropdowns(){
-  const years = getAvailableYears();
-  const setOptions = (selId) => {
-    const sel = document.getElementById(selId);
-    if(!sel) return;
-    const current = sel.value;
-    sel.innerHTML = "";
-    years.forEach(y=>{
-      const opt=document.createElement("option");
-      opt.value=String(y);
-      opt.textContent=String(y);
-      sel.appendChild(opt);
-    });
-    const nowY = String(new Date().getFullYear());
-    sel.value = years.includes(Number(current)) ? current : (years.includes(Number(nowY)) ? nowY : String(years[0]));
-  };
-  setOptions("cost-year");
-  setOptions("agenda-year");
-}
-
 function calculateCosts(year, vehicleOrNull){
   let service=0, reifen=0, sonst=0;
   const vehicles = vehicleOrNull ? [vehicleOrNull] : data.vehicles;
@@ -795,6 +817,7 @@ function addAppointment(event){
   document.getElementById("appt-form").reset();
   renderAppointments();
   renderAgenda();
+  ensureYearDropdowns();
 }
 
 function deleteAppointment(id){
@@ -804,6 +827,7 @@ function deleteAppointment(id){
   saveData();
   renderAppointments();
   renderAgenda();
+  ensureYearDropdowns();
 }
 
 function renderAppointments(){
@@ -827,34 +851,39 @@ function renderAppointments(){
 }
 
 /** =========================
- *  AGENDA (alle Autos)
+ *  AGENDA (alle Autos) + FILTER B
  *  ========================= */
-function buildAgendaItems(){
+function buildAgendaItems(mode){
   const items = [];
   data.vehicles.forEach(v=>{
     const kz = v.kennzeichen || "";
 
-    // Auto: Pickerl/Leasing als automatische Termine
-    if(v.pickerlBis){
-      const d = getMonthEndDate(v.pickerlBis);
-      if(d){
-        const iso = d.toISOString().slice(0,10);
-        items.push({date: iso, car: kz, type: "Pickerl", note: "Automatisch: Pickerl fällig ("+formatMonthYM(v.pickerlBis)+")"});
-      }
-    }
-    if(v.leasingBis){
-      const d = getMonthEndDate(v.leasingBis);
-      if(d){
-        const iso = d.toISOString().slice(0,10);
-        items.push({date: iso, car: kz, type: "Leasing", note: "Automatisch: Leasing endet ("+formatMonthYM(v.leasingBis)+")"});
-      }
+    if(mode === "manual" || mode === "all"){
+      (v.appointments||[]).forEach(a=>{
+        if(a.date){
+          items.push({date: a.date, car: kz, type: a.type, note: a.note || ""});
+        }
+      });
     }
 
-    // Eigene Termine
-    (v.appointments||[]).forEach(a=>{
-      items.push({date: a.date, car: kz, type: a.type, note: a.note || ""});
-    });
+    if(mode === "due" || mode === "all"){
+      if(v.pickerlBis){
+        const d = getMonthEndDate(v.pickerlBis);
+        if(d){
+          const iso = d.toISOString().slice(0,10);
+          items.push({date: iso, car: kz, type: "Pickerl (fällig)", note: "Fälligkeit ("+formatMonthYM(v.pickerlBis)+")"});
+        }
+      }
+      if(v.leasingBis){
+        const d = getMonthEndDate(v.leasingBis);
+        if(d){
+          const iso = d.toISOString().slice(0,10);
+          items.push({date: iso, car: kz, type: "Leasing (Ende)", note: "Ende ("+formatMonthYM(v.leasingBis)+")"});
+        }
+      }
+    }
   });
+
   return items.filter(x=>x.date).sort((a,b)=> (a.date||"").localeCompare(b.date||""));
 }
 
@@ -865,21 +894,21 @@ function renderAgenda(){
 
   const year = (document.getElementById("agenda-year")?.value) || String(new Date().getFullYear());
   const range = (document.getElementById("agenda-range")?.value) || "90";
+  const mode = (document.getElementById("agenda-mode")?.value) || "manual";
 
   const now = new Date();
   const maxDate = (range === "all") ? null : new Date(now.getTime() + Number(range)*86400000);
 
-  const items = buildAgendaItems().filter(it=>{
+  const items = buildAgendaItems(mode).filter(it=>{
     const d = new Date(it.date);
     if(String(d.getFullYear()) !== String(year)) return false;
     if(maxDate && d > maxDate) return false;
-    // allow past dates? keep, but show as they come (you can change if you want)
     return true;
   });
 
   if(items.length === 0){
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td colspan="4" class="small">Keine Termine im gewählten Zeitraum.</td>`;
+    tr.innerHTML = `<td colspan="4" class="small">Keine Einträge im gewählten Zeitraum.</td>`;
     tbody.appendChild(tr);
     return;
   }
@@ -947,10 +976,13 @@ function openInvoiceFile(invoiceId){
   if(!v) return;
 
   const inv = (v.invoices || []).find(i => i.id === invoiceId);
-  if(!inv || !inv.file || !inv.file.data) return;
+  if(!inv) return;
 
-  // DataURL -> Blob öffnen (Chrome about:blank#blocked umgehen)
-  const parts = inv.file.data.split(',');
+  // Backward compatibility: alt evtl. inv.file = dataURL string
+  const dataUrl = (typeof inv.file === "string") ? inv.file : (inv.file && inv.file.data ? inv.file.data : null);
+  if(!dataUrl) return;
+
+  const parts = dataUrl.split(',');
   const meta = parts[0] || "";
   const b64  = parts[1] || "";
 
@@ -977,7 +1009,7 @@ function renderInvoices(){
 
   const list = (v.invoices || []).slice().sort((a,b)=> (a.date||"").localeCompare(b.date||""));
   list.forEach(inv => {
-    const openBtn = inv.file && inv.file.data
+    const openBtn = (inv.file && (inv.file.data || typeof inv.file === "string"))
       ? `<button class="btn-secondary btn-small" onclick="openInvoiceFile('${inv.id}')">Öffnen</button>`
       : "";
 
