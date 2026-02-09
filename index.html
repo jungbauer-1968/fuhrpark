@@ -832,6 +832,14 @@ function deleteAppointment(id){
   renderAgenda();
   ensureYearDropdowns();
 }
+function deleteAppointmentFromAgenda(vehicleId, appointmentId){
+  const v = data.vehicles.find(x => x.id === vehicleId);
+  if(!v) return;
+  v.appointments = (v.appointments || []).filter(a => a.id !== appointmentId);
+  saveData();
+  renderAgenda();
+  if(selectedVehicleId === vehicleId) renderAppointments();
+}
 
 function renderAppointments(){
   const tbody = document.getElementById("appt-tbody");
