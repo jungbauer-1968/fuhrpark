@@ -872,7 +872,16 @@ function buildAgendaItems(mode){
     if(mode === "manual" || mode === "all"){
       (v.appointments||[]).forEach(a=>{
         if(a.date){
-          items.push({date: a.date, car: kz, type: a.type, note: a.note || ""});
+          items.push({
+  date: a.date,
+  car: kz,
+  type: a.type,
+  note: a.note || "",
+  vehicleId: v.id,
+  appointmentId: a.id,
+  deletable: true
+});
+
         }
       });
     }
