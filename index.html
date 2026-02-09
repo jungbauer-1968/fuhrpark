@@ -364,6 +364,55 @@ const OLD_KEYS = [
 
 let data = { vehicles: [] };
 let selectedVehicleId = null;
+// =========================
+// FILE STORAGE (IndexedDB) – für PDFs/Bilder (kein localStorage Limit)
+// =========================
+const FILE_DB_NAME = "fuhrpark_files_v1";
+const FILE_STORE = "files";
+
+function idbOpen(){
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(FILE_DB_NAME, 1);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if(!db.objectStoreNames.contains(FILE_STORE)){
+        db.createObjectStore(FILE_STORE);
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function idbSet(key, blob){
+  const db = await idbOpen();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(FILE_STORE, "readwrite");
+    tx.objectStore(FILE_STORE).put(blob, key);
+    tx.oncomplete = () => { db.close(); resolve(true); };
+    tx.onerror = () => { db.close(); reject(tx.error); };
+  });
+}
+
+async function idbGet(key){
+  const db = await idbOpen();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(FILE_STORE, "readonly");
+    const req = tx.objectStore(FILE_STORE).get(key);
+    req.onsuccess = () => { db.close(); resolve(req.result || null); };
+    req.onerror = () => { db.close(); reject(req.error); };
+  });
+}
+
+async function idbDel(key){
+  const db = await idbOpen();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(FILE_STORE, "readwrite");
+    tx.objectStore(FILE_STORE).delete(key);
+    tx.oncomplete = () => { db.close(); resolve(true); };
+    tx.onerror = () => { db.close(); reject(tx.error); };
+  });
+}
 
 function safeParseJSON(raw){ try { return JSON.parse(raw); } catch { return null; } }
 function normalizeMonth(value){
@@ -971,9 +1020,16 @@ function addInvoice(event){
     file: null
   };
 
-  const reader = new FileReader();
-  reader.onload = () => {
-    invoice.file = { name: file.name, type: file.type, data: reader.result };
+ const reader = new FileReader();
+reader.onload = async () => {
+  try{
+    // Datei als Blob in IndexedDB speichern (key = invoice.id)
+    const blob = new Blob([reader.result], { type: file.type || "application/octet-stream" });
+    await idbSet(invoice.id, blob);
+
+    // In localStorage nur Meta speichern (klein!)
+    invoice.file = { name: file.name, type: file.type, stored: "idb" };
+
     v.invoices = v.invoices || [];
     v.invoices.push(invoice);
 
@@ -982,8 +1038,13 @@ function addInvoice(event){
     renderCosts();
     renderInvoices();
     document.getElementById("invoice-form").reset();
-  };
-  reader.readAsDataURL(file);
+  } catch(e){
+    console.error(e);
+    alert("Konnte Datei nicht speichern (IndexedDB).");
+  }
+};
+reader.readAsArrayBuffer(file);
+
 }
 
 function deleteInvoice(id){
