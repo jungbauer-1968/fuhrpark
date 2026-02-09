@@ -1163,7 +1163,11 @@ const openBtn = canOpen
       <td>${inv.type || ""}</td>
       <td>${money(inv.amount)}</td>
       <td>${inv.vendor || ""}</td>
-      <td>${openBtn}</td>
+    <td>
+  ${(inv.file && inv.file.name) ? inv.file.name : `<span class="badge">keine Datei</span>`}
+  ${openBtn || `<button class="btn-secondary btn-small" onclick="attachFileToInvoice('${inv.id}')">Datei hinzufügen</button>`}
+</td>
+
       <td><button class="btn-danger btn-small" onclick="deleteInvoice('${inv.id}')">X</button></td>
     `;
     tbody.appendChild(tr);
