@@ -1051,6 +1051,7 @@ function deleteInvoice(id){
   const v = data.vehicles.find(x => x.id === selectedVehicleId);
   if(!v) return;
   v.invoices = (v.invoices || []).filter(i => i.id !== id);
+  idbDel(id).catch(()=>{});
   saveData();
   ensureYearDropdowns();
   renderCosts();
