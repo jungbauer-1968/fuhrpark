@@ -935,7 +935,12 @@ function renderAgenda(){
 
   items.forEach(it=>{
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td>${it.date}</td><td><b>${it.car}</b></td><td>${it.type}</td><td>${it.note||""}</td>`;
+    const delBtn = it.deletable
+  ? `<button class="btn-danger btn-small" onclick="deleteAppointmentFromAgenda('${it.vehicleId}','${it.appointmentId}')">X</button>`
+  : "";
+
+tr.innerHTML = `<td>${it.date}</td><td><b>${it.car}</b></td><td>${it.type}</td><td>${it.note||""}</td><td>${delBtn}</td>`;
+
     tbody.appendChild(tr);
   });
 }
