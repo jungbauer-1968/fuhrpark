@@ -1056,34 +1056,47 @@ function deleteInvoice(id){
   renderCosts();
   renderInvoices();
 }
-
-function openInvoiceFile(invoiceId){
+async function openInvoiceFile(invoiceId){
   const v = data.vehicles.find(x => x.id === selectedVehicleId);
   if(!v) return;
 
   const inv = (v.invoices || []).find(i => i.id === invoiceId);
   if(!inv) return;
 
-  // Backward compatibility: alt evtl. inv.file = dataURL string
-  const dataUrl = (typeof inv.file === "string") ? inv.file : (inv.file && inv.file.data ? inv.file.data : null);
-  if(!dataUrl) return;
+  // ALT: falls noch alte Base64-Dateien existieren, weiterhin öffnen
+  const legacyDataUrl = (typeof inv.file === "string") ? inv.file : (inv.file && inv.file.data ? inv.file.data : null);
+  if(legacyDataUrl){
+    const parts = legacyDataUrl.split(',');
+    const meta = parts[0] || "";
+    const b64  = parts[1] || "";
+    const mimeMatch = meta.match(/data:(.*?);base64/);
+    const mime = mimeMatch ? mimeMatch[1] : "application/octet-stream";
+    const byteChars = atob(b64);
+    const byteNumbers = new Array(byteChars.length);
+    for (let i = 0; i < byteChars.length; i++) byteNumbers[i] = byteChars.charCodeAt(i);
+    const blob = new Blob([new Uint8Array(byteNumbers)], { type: mime });
+    const url = URL.createObjectURL(blob);
+    window.open(url, "_blank");
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    return;
+  }
 
-  const parts = dataUrl.split(',');
-  const meta = parts[0] || "";
-  const b64  = parts[1] || "";
+  // NEU: aus IndexedDB holen
+  if(inv.file && inv.file.stored === "idb"){
+    const blob = await idbGet(inv.id);
+    if(!blob){
+      alert("Datei nicht gefunden (IndexedDB).");
+      return;
+    }
+    const url = URL.createObjectURL(blob);
+    window.open(url, "_blank");
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    return;
+  }
 
-  const mimeMatch = meta.match(/data:(.*?);base64/);
-  const mime = mimeMatch ? mimeMatch[1] : "application/octet-stream";
-
-  const byteChars = atob(b64);
-  const byteNumbers = new Array(byteChars.length);
-  for (let i = 0; i < byteChars.length; i++) byteNumbers[i] = byteChars.charCodeAt(i);
-  const blob = new Blob([new Uint8Array(byteNumbers)], { type: mime });
-
-  const url = URL.createObjectURL(blob);
-  window.open(url, "_blank");
-  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  alert("Keine Datei gespeichert.");
 }
+
 
 function renderInvoices(){
   const tbody = document.getElementById("invoice-tbody");
