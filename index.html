@@ -1109,9 +1109,15 @@ function renderInvoices(){
 
   const list = (v.invoices || []).slice().sort((a,b)=> (a.date||"").localeCompare(b.date||""));
   list.forEach(inv => {
-    const openBtn = (inv.file && (inv.file.data || typeof inv.file === "string"))
-      ? `<button class="btn-secondary btn-small" onclick="openInvoiceFile('${inv.id}')">Öffnen</button>`
-      : "";
+    const canOpen =
+  (typeof inv.file === "string") ||
+  (inv.file && inv.file.data) ||
+  (inv.file && inv.file.stored === "idb");
+
+const openBtn = canOpen
+  ? `<button class="btn-secondary btn-small" onclick="openInvoiceFile('${inv.id}')">Öffnen</button>`
+  : "";
+
 
     const tr = document.createElement("tr");
     tr.innerHTML = `
