@@ -1082,6 +1082,43 @@ async function openInvoiceFile(invoiceId){
     setTimeout(() => URL.revokeObjectURL(url), 60_000);
     return;
   }
+async function attachFileToInvoice(invoiceId){
+  if(!selectedVehicleId) return;
+  const v = data.vehicles.find(x => x.id === selectedVehicleId);
+  if(!v) return;
+
+  const inv = (v.invoices || []).find(i => i.id === invoiceId);
+  if(!inv) return;
+
+  // Datei Picker
+  const picker = document.createElement("input");
+  picker.type = "file";
+  picker.accept = ".pdf,.jpg,.jpeg,.png";
+
+  picker.onchange = async () => {
+    const file = picker.files && picker.files[0] ? picker.files[0] : null;
+    if(!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try{
+        const blob = new Blob([reader.result], { type: file.type || "application/octet-stream" });
+        await idbSet(inv.id, blob);
+        inv.file = { name: file.name, type: file.type, stored: "idb" };
+
+        saveData();
+        renderInvoices();
+        alert("Datei gespeichert ✅");
+      } catch(e){
+        console.error(e);
+        alert("Konnte Datei nicht speichern (IndexedDB).");
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  picker.click();
+}
 
   // NEU: aus IndexedDB holen
   if(inv.file && inv.file.stored === "idb"){
